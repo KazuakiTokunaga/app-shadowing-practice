@@ -89,7 +89,6 @@ http://localhost:8000
 - **AI/音声処理**: OpenAI API (Whisper, TTS)
   - 音声作成: gpt-4o-mini-tts
   - 書き起こし: whisper-1
-  - API費用がかかります
 - **パッケージ管理**: uv
 
 ### プロジェクト構造
@@ -129,6 +128,7 @@ app-shadowing-practice/
 
 ## 注意事項
 
+- 利用すると、OpenAIのAPI費用がかかります
 - OpenAI APIキーは.envファイルで管理し、Gitにコミットしないでください
 - 音声データは録音後即座に書き起こし処理を行い、永続化されません
 - Google Chrome推奨（Web Audio API使用）
