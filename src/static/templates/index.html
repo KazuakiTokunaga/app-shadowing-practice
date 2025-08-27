@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シャドーイング練習アプリ</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- ヘッダー -->
+        <header class="header">
+            <h1>シャドーイング練習アプリ</h1>
+            <nav class="nav">
+                <button class="nav-btn active" data-page="exercises">課題管理</button>
+                <button class="nav-btn" data-page="settings">設定</button>
+            </nav>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <main class="main">
+            <!-- 課題管理ページ -->
+            <div id="exercises-page" class="page active">
+                <div class="page-header">
+                    <h2>課題管理</h2>
+                    <button id="create-exercise-btn" class="btn-primary">新しい課題を作成</button>
+                </div>
+
+                <!-- 課題一覧 -->
+                <div class="exercises-list">
+                    <div class="exercises-controls">
+                        <select id="sort-select">
+                            <option value="created_at:desc">作成日時（新しい順）</option>
+                            <option value="created_at:asc">作成日時（古い順）</option>
+                            <option value="title:asc">タイトル（昇順）</option>
+                            <option value="title:desc">タイトル（降順）</option>
+                            <option value="max_score:desc">スコア（高い順）</option>
+                            <option value="max_score:asc">スコア（低い順）</option>
+                            <option value="last_practiced_at:desc">最終実施日（新しい順）</option>
+                            <option value="last_practiced_at:asc">最終実施日（古い順）</option>
+                        </select>
+                    </div>
+                    <div id="exercises-container" class="exercises-container">
+                        <!-- 課題カードがここに動的に挿入される -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 設定ページ -->
+            <div id="settings-page" class="page">
+                <div class="page-header">
+                    <h2>設定</h2>
+                </div>
+                <div class="settings-container">
+                    <div class="setting-group">
+                        <label for="speech-rate">読み上げ速度</label>
+                        <select id="speech-rate">
+                            <option value="1.0">1.0倍</option>
+                            <option value="1.1">1.1倍</option>
+                            <option value="1.2">1.2倍</option>
+                            <option value="1.3">1.3倍</option>
+                            <option value="1.4">1.4倍</option>
+                            <option value="1.5">1.5倍</option>
+                            <option value="1.6">1.6倍</option>
+                            <option value="1.7">1.7倍</option>
+                            <option value="1.8">1.8倍</option>
+                            <option value="1.9">1.9倍</option>
+                            <option value="2.0">2.0倍</option>
+                        </select>
+                    </div>
+                    <div class="setting-group">
+                        <label for="speech-voice">音声の種類</label>
+                        <select id="speech-voice">
+                            <option value="alloy">Alloy</option>
+                            <option value="ash">Ash</option>
+                            <option value="ballad">Ballad</option>
+                            <option value="coral">Coral</option>
+                            <option value="echo">Echo</option>
+                            <option value="fable">Fable</option>
+                            <option value="onyx">Onyx</option>
+                            <option value="nova">Nova</option>
+                            <option value="sage">Sage</option>
+                            <option value="shimmer">Shimmer</option>
+                            <option value="verse">Verse</option>
+                        </select>
+                    </div>
+                    <div class="setting-actions">
+                        <button id="save-settings-btn" class="btn-primary">設定を保存</button>
+                        <button id="reset-settings-btn" class="btn-secondary">デフォルトに戻す</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- モーダル -->
+    <!-- 課題作成モーダル -->
+    <div id="create-exercise-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>新しい課題を作成</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="exercise-title">タイトル（必須）</label>
+                    <input type="text" id="exercise-title" placeholder="課題のタイトルを入力してください" required>
+                </div>
+                <div class="form-group">
+                    <label for="exercise-content">英文（50-300単語）</label>
+                    <textarea id="exercise-content" rows="10" placeholder="英文を入力してください..."></textarea>
+                    <div class="word-count">単語数: <span id="word-count">0</span></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-create-btn" class="btn-secondary">キャンセル</button>
+                <button id="submit-create-btn" class="btn-primary">作成</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 課題詳細・編集モーダル -->
+    <div id="exercise-detail-modal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3 id="exercise-detail-title">課題詳細</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="exercise-detail-tabs">
+                    <button class="tab-btn active" data-tab="detail">詳細</button>
+                    <button class="tab-btn" data-tab="listen">リスニング</button>
+                    <button class="tab-btn" data-tab="shadowing">シャドーイング</button>
+                    <button class="tab-btn" data-tab="results">結果</button>
+                </div>
+
+                <!-- 詳細タブ -->
+                <div id="detail-tab" class="tab-content active">
+                    <div class="form-group">
+                        <label>タイトル</label>
+                        <div class="title-edit-container">
+                            <input type="text" id="detail-title" readonly>
+                            <button id="edit-title-btn" class="icon-button" title="タイトルを編集">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>英文</label>
+                        <textarea id="detail-content" rows="8" readonly></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>音声設定</label>
+                        <div class="speech-settings-display">
+                            <div class="speech-setting-item">
+                                <span class="setting-label">再生速度：</span>
+                                <span id="detail-speech-rate">1.0</span>倍
+                            </div>
+                            <div class="speech-setting-item">
+                                <span class="setting-label">音声の種類：</span>
+                                <span id="detail-speech-voice">Alloy</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>ターン分割</label>
+                        <div id="turns-container" class="turns-container">
+                            <!-- ターンがここに表示される -->
+                        </div>
+                    </div>
+                    <div class="detail-actions">
+                        <button id="save-title-btn" class="btn-primary" style="display: none;">タイトルを保存</button>
+                        <button id="cancel-title-btn" class="btn-secondary" style="display: none;">キャンセル</button>
+                        <button id="delete-exercise-btn" class="btn-danger">課題を削除</button>
+                    </div>
+                </div>
+
+                <!-- リスニングタブ -->
+                <div id="listen-tab" class="tab-content">
+                    <div class="listen-content">
+                        <div class="listen-turns-container" id="listen-turns-container">
+                            <!-- ターンがここに表示される -->
+                        </div>
+                        <div class="audio-player">
+                            <div class="audio-controls">
+                                <button id="play-full-audio-btn" class="btn-primary">
+                                    <i class="fas fa-play"></i> 再生
+                                </button>
+                                <button id="pause-full-audio-btn" class="btn-secondary" style="display: none;">
+                                    <i class="fas fa-pause"></i> 一時停止
+                                </button>
+                            </div>
+                            <div class="audio-progress-container">
+                                <div class="audio-time">
+                                    <span id="audio-current-time">0:00</span>
+                                </div>
+                                <div class="audio-seekbar-wrapper">
+                                    <input type="range" id="audio-seekbar" class="audio-seekbar" min="0" max="100" value="0" step="0.1">
+                                    <div class="audio-progress-fill"></div>
+                                </div>
+                                <div class="audio-time">
+                                    <span id="audio-duration">0:00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- シャドーイングタブ -->
+                <div id="shadowing-tab" class="tab-content">
+                    <div class="shadowing-content">
+                        <div class="shadowing-progress">
+                            <span id="current-turn">1</span> / <span id="total-turns">1</span>
+                        </div>
+                        <div class="current-turn-text" id="current-turn-text">
+                            <!-- 現在のターンの英文 -->
+                        </div>
+                        <div class="shadowing-controls">
+                            <button id="start-turn-btn" class="btn-primary">開始</button>
+                            <button id="next-turn-btn" class="btn-primary" style="display: none;">次へ</button>
+                            <button id="retry-turn-btn" class="btn-secondary" style="display: none;">やり直し</button>
+                            <button id="finish-shadowing-btn" class="btn-success" style="display: none;">完了</button>
+                        </div>
+                        <div class="keyboard-hint" id="keyboard-hint">
+                            <small>※ エンターキーで進行可能です</small>
+                        </div>
+                        <div class="recording-status" id="recording-status" style="display: none;">
+                            <div class="recording-indicator"></div>
+                            <span>録音中...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 結果タブ -->
+                <div id="results-tab" class="tab-content">
+                    <div id="results-container" class="results-container">
+                        <!-- 結果がここに表示される -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 結果表示モーダル -->
+    <div id="result-modal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3>シャドーイング結果</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="result-summary">
+                    <div class="score-display">
+                        <span class="score-label">総合スコア</span>
+                        <span class="score-value" id="total-score">0%</span>
+                    </div>
+                </div>
+                <div class="result-details" id="result-details">
+                    <!-- ターン別結果がここに表示される -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary modal-close">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ローディング -->
+    <div id="loading" class="loading" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">処理中...</div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
