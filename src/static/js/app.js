@@ -24,6 +24,38 @@ class ShadowingApp {
         this.loadSettings();
     }
 
+    // 日時フォーマッタ（サーバーはUTC想定。タイムゾーン未指定はUTCとして扱う）
+    formatDateTime(isoString) {
+        if (!isoString) return '';
+        const normalized = this.normalizeToUtcIsoString(isoString);
+        const date = new Date(normalized);
+        if (Number.isNaN(date.getTime())) return '';
+        // 長いタイムゾーン名だと崩れることがあるので省略名にする
+        return date.toLocaleString('ja-JP', {
+            year: 'numeric', month: 'numeric', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        });
+    }
+
+    // 日付のみ表示用（サーバーUTC→ローカル）
+    formatDate(isoString) {
+        if (!isoString) return '';
+        const normalized = this.normalizeToUtcIsoString(isoString);
+        const date = new Date(normalized);
+        if (Number.isNaN(date.getTime())) return '';
+        return date.toLocaleDateString('ja-JP');
+    }
+
+    // 受け取った日時文字列がタイムゾーン未指定の場合はUTCとして解釈できるよう加工
+    normalizeToUtcIsoString(value) {
+        if (typeof value !== 'string') return value;
+        // すでにタイムゾーン情報がある（Z or +09:00 等）場合はそのまま
+        if (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(value)) return value;
+        // 空白区切りをTに置換してISOっぽくし、UTCを明示
+        const withT = value.replace(' ', 'T');
+        return withT.endsWith('Z') ? withT : `${withT}Z`;
+    }
+
     setupEventListeners() {
         // ナビゲーション
         document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -234,13 +266,18 @@ class ShadowingApp {
         this.isEditing = false;
 
         
-        // result-modalを閉じる際にすべての状態をリセット
+        // result-modalを閉じる際は、結果一覧（exercise-detail-modalのresultsタブ）へ戻す
         if (modalId === 'result-modal') {
-            this.currentExercise = null;
-            this.turns = [];
-            this.recordings = [];
-            this.currentTurn = 0;
-            this.totalTurns = 0;
+            const detailModal = document.getElementById('exercise-detail-modal');
+            if (detailModal) {
+                // 結果詳細モーダルを閉じ、詳細モーダルを再度表示
+                detailModal.classList.add('active');
+                // 依然としてモーダルが開いているためスクロールを無効化
+                document.body.style.overflow = 'hidden';
+                // 結果タブを表示
+                this.switchTab('results');
+            }
+            return;
         }
     }
 
@@ -324,9 +361,9 @@ class ShadowingApp {
             <div class="exercise-card" data-exercise-id="${exercise.id}">
                 <h3>${this.escapeHtml(exercise.title)}</h3>
                 <div class="meta">
-                    作成日: ${new Date(exercise.created_at).toLocaleDateString('ja-JP')}
+                    作成日: ${this.formatDate(exercise.created_at)}
                     ${exercise.last_practiced_at ? 
-                        `<br>最終実施: ${new Date(exercise.last_practiced_at).toLocaleDateString('ja-JP')}` : 
+                        `<br>最終実施: ${this.formatDate(exercise.last_practiced_at)}` : 
                         ''
                     }
                 </div>
@@ -456,6 +493,9 @@ class ShadowingApp {
         document.getElementById('detail-title').value = exercise.title;
         document.getElementById('detail-content').value = exercise.content;
         
+        // 単語数を表示
+        document.getElementById('detail-word-count').textContent = exercise.word_count || 0;
+        
         // 音声再生速度を表示
         const speechRate = exercise.speech_rate || 1.0;
         document.getElementById('detail-speech-rate').textContent = speechRate.toFixed(1);
@@ -470,8 +510,7 @@ class ShadowingApp {
         document.getElementById('cancel-title-btn').style.display = 'none';
         document.getElementById('detail-title').readOnly = true;
         
-        // ターン表示
-        this.renderTurns(exercise.turns);
+        // 詳細タブのターン分割は表示しない（UIから削除済み）
         
         // リスニングタブ
         this.renderListeningTurns(exercise.turns);
@@ -486,16 +525,7 @@ class ShadowingApp {
         this.switchTab('detail');
     }
 
-    // ターン表示
-    renderTurns(turns) {
-        const container = document.getElementById('turns-container');
-        container.innerHTML = turns.map(turn => `
-            <div class="turn-item">
-                <div class="turn-number">${turn.id}</div>
-                <div class="turn-text">${this.escapeHtml(turn.text)}</div>
-            </div>
-        `).join('');
-    }
+    // 以前は詳細タブにターン分割を表示していたがUIから削除
 
     // リスニングタブのターン表示
     renderListeningTurns(turns) {
@@ -590,38 +620,27 @@ class ShadowingApp {
     // シャドーイング表示更新
     updateShadowingDisplay() {
         const currentTurnDisplay = document.getElementById('current-turn');
-        const currentTurnText = document.getElementById('current-turn-text');
+        const turnTextContent = document.getElementById('turn-text-content');
         const startBtn = document.getElementById('start-turn-btn');
         const nextBtn = document.getElementById('next-turn-btn');
         const retryBtn = document.getElementById('retry-turn-btn');
         const finishBtn = document.getElementById('finish-shadowing-btn');
-        const keyboardHint = document.getElementById('keyboard-hint');
 
         if (this.currentTurn < this.totalTurns) {
             currentTurnDisplay.textContent = this.currentTurn + 1;
             // シャドーイング画面では英語テキストを表示しない
-            currentTurnText.textContent = '音声を聞いてシャドーイングしてください';
+            turnTextContent.textContent = '音声を聞いてシャドーイングしてください';
             
             startBtn.style.display = 'inline-block';
             nextBtn.style.display = 'none';
             retryBtn.style.display = 'none';
             finishBtn.style.display = 'none';
-            
-            // キーボードヒントを表示
-            if (keyboardHint) {
-                keyboardHint.style.display = 'block';
-            }
         } else {
-            currentTurnText.textContent = 'すべてのターンが完了しました';
+            turnTextContent.textContent = 'すべてのターンが完了しました';
             startBtn.style.display = 'none';
             nextBtn.style.display = 'none';
             retryBtn.style.display = 'none';
             finishBtn.style.display = 'inline-block';
-            
-            // キーボードヒントを表示（完了ボタンでも使えるため）
-            if (keyboardHint) {
-                keyboardHint.style.display = 'block';
-            }
         }
     }
 
@@ -1349,7 +1368,7 @@ class ShadowingApp {
             <div class="result-item" data-result-id="${result.id}">
                 <div class="result-item-header">
                     <span class="result-item-score">${result.total_score.toFixed(1)}%</span>
-                    <span class="result-item-date">${new Date(result.completed_at).toLocaleString('ja-JP')}</span>
+                    <span class="result-item-date">${this.formatDateTime(result.completed_at)}</span>
                 </div>
             </div>
         `).join('');

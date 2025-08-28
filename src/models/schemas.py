@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
@@ -53,6 +53,7 @@ class Exercise(ExerciseBase):
     """課題情報（レスポンス用）"""
 
     id: int
+    word_count: int
     turns: List[TurnData]
     audio_file_path: Optional[str] = None
     speech_rate: float = 1.0
@@ -71,6 +72,7 @@ class ExerciseList(BaseModel):
 
     id: int
     title: str
+    word_count: int
     created_at: datetime
     max_score: Optional[float] = None
     attempt_count: int = 0
@@ -127,7 +129,8 @@ class APIResponse(BaseModel):
     success: bool
     data: Optional[Any] = None
     message: str
-    timestamp: datetime = Field(default_factory=datetime.now)
+    # APIサーバーはUTC時刻で返却（クライアント側でローカルに変換）
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class TranscriptionRequest(BaseModel):

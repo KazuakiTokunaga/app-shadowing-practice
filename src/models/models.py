@@ -13,6 +13,7 @@ class Exercise(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)  # 原文全体（100-300単語）
+    word_count = Column(Integer, nullable=False)  # 単語数
     turns = Column(Text, nullable=False)  # JSON形式のターン分割データ
     audio_file_path = Column(String(500))  # 全体音声ファイルパス（リスニング用）
     speech_rate = Column(Float, default=1.0)  # 音声再生速度（課題作成時の設定値）
