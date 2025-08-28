@@ -273,24 +273,41 @@ body {
     max-width: 600px;
     width: 90%;
     max-height: 90vh;
-    overflow-y: auto;
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .modal-content.large {
     max-width: 800px;
+    height: 85vh; /* 詳細/結果モーダルの高さを固定 */
 }
 
 .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem;
+    padding: 1rem 1.5rem; /* 一覧モーダルと同じバランスに調整 */
     border-bottom: 1px solid #eee;
 }
 
 .modal-header h3 {
     color: #2c3e50;
-    font-size: 1.1rem;
+    font-size: 1rem; /* 一覧側に合わせて小さめに */
+    font-weight: 600;
+}
+
+/* 結果モーダルのヘッダー戻るリンク風ボタン（一覧ヘッダーと統一感） */
+.modal-header .modal-back-link {
+    background: none;
+    border: none;
+    color: #7f8c8d;
+    font-size: 1rem;
+    cursor: pointer;
+}
+.modal-header .modal-back-link:hover {
+    color: #2c3e50;
 }
 
 .modal-close {
@@ -307,6 +324,8 @@ body {
 
 .modal-body {
     padding: 1rem;
+    flex: 1;
+    overflow-y: auto; /* 本文のみスクロール */
 }
 
 .modal-footer {
@@ -340,6 +359,11 @@ body {
 
 .form-group textarea {
     resize: vertical;
+}
+
+/* 課題詳細の英文テキストエリアを少し大きめに */
+#detail-content {
+    min-height: 260px;
 }
 
 /* タイトル編集コンテナ */
@@ -382,6 +406,13 @@ body {
 }
 
 .word-count {
+    text-align: right;
+    font-size: 0.9rem;
+    color: #7f8c8d;
+    margin-top: 0.5rem;
+}
+
+.word-count-display {
     text-align: right;
     font-size: 0.9rem;
     color: #7f8c8d;
@@ -620,7 +651,7 @@ body {
     overflow-y: auto;
     border: 1px solid #eee;
     border-radius: 8px;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem; /* 上に配置し、下にプレーヤーが来るため下マージン */
     background: #f8f9fa;
 }
 
@@ -681,12 +712,27 @@ body {
     padding: 2rem;
     border-radius: 8px;
     margin-bottom: 2rem;
-    font-size: 1rem;
-    line-height: 1.8;
     min-height: 100px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 1rem;
+}
+
+.turn-text-content {
+    font-size: 1rem;
+    line-height: 1.8;
+    text-align: center;
+}
+
+.turn-text-hints {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    color: #7f8c8d;
+    font-size: 0.9rem;
 }
 
 .shadowing-controls {
@@ -694,13 +740,6 @@ body {
     justify-content: center;
     gap: 1rem;
     margin-bottom: 1.5rem;
-}
-
-.keyboard-hint {
-    text-align: center;
-    margin-bottom: 1.5rem;
-    color: #7f8c8d;
-    font-size: 0.9rem;
 }
 
 .recording-status {

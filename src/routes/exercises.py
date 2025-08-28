@@ -89,6 +89,7 @@ async def get_exercises(
             exercise_data = ExerciseList(
                 id=exercise.id,
                 title=exercise.title,
+                word_count=exercise.word_count,
                 created_at=exercise.created_at,
                 max_score=max_score,
                 attempt_count=attempt_count,
@@ -124,10 +125,15 @@ async def create_exercise(exercise_data: ExerciseCreate, db: AsyncSession = Depe
         # 音声生成用の設定を取得（DBに保存する前に取得）
         speech_settings = await _get_speech_settings(db)
 
+        # 単語数を計算
+        words = exercise_data.content.strip().split()
+        word_count = len([word for word in words if word])
+
         # 課題をデータベースに保存
         exercise = Exercise(
             title=exercise_data.title,
             content=exercise_data.content,
+            word_count=word_count,
             turns=json.dumps(turns, ensure_ascii=False),
             speech_rate=speech_settings["speech_rate"],  # 作成時の再生速度を保存
             speech_voice=speech_settings["speech_voice"],  # 作成時の音声の種類を保存
@@ -166,6 +172,7 @@ async def create_exercise(exercise_data: ExerciseCreate, db: AsyncSession = Depe
             id=exercise.id,
             title=exercise.title,
             content=exercise.content,
+            word_count=exercise.word_count,
             turns=[TurnData(**turn) for turn in updated_turns],
             audio_file_path=exercise.audio_file_path,
             speech_rate=exercise.speech_rate,
@@ -213,6 +220,7 @@ async def get_exercise(exercise_id: int, db: AsyncSession = Depends(get_db)):
             id=exercise.id,
             title=exercise.title,
             content=exercise.content,
+            word_count=exercise.word_count,
             turns=turns,
             audio_file_path=exercise.audio_file_path,
             speech_rate=exercise.speech_rate,
@@ -261,6 +269,7 @@ async def update_exercise_title(exercise_id: int, request: Request, db: AsyncSes
             id=exercise.id,
             title=exercise.title,
             content=exercise.content,
+            word_count=exercise.word_count,
             turns=[TurnData(**turn) for turn in turns_data],
             audio_file_path=exercise.audio_file_path,
             speech_rate=exercise.speech_rate,

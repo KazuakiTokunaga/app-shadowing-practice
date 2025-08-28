@@ -150,6 +150,9 @@
                     <div class="form-group">
                         <label>英文</label>
                         <textarea id="detail-content" rows="8" readonly></textarea>
+                        <div class="word-count-display">
+                            <span id="detail-word-count">0</span> 単語
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>音声設定</label>
@@ -162,12 +165,6 @@
                                 <span class="setting-label">音声の種類：</span>
                                 <span id="detail-speech-voice">Alloy</span>
                             </div>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>ターン分割</label>
-                        <div id="turns-container" class="turns-container">
-                            <!-- ターンがここに表示される -->
                         </div>
                     </div>
                     <div class="detail-actions">
@@ -215,16 +212,19 @@
                             <span id="current-turn">1</span> / <span id="total-turns">1</span>
                         </div>
                         <div class="current-turn-text" id="current-turn-text">
-                            <!-- 現在のターンの英文 -->
+                            <div class="turn-text-content" id="turn-text-content">
+                                <!-- 現在のターンの英文 -->
+                            </div>
+                            <div class="turn-text-hints">
+                                <small>※ エンターキーで進行可能です</small>
+                                <small>※ イヤホンをつけて実施してください</small>
+                            </div>
                         </div>
                         <div class="shadowing-controls">
                             <button id="start-turn-btn" class="btn-primary">開始</button>
                             <button id="next-turn-btn" class="btn-primary" style="display: none;">次へ</button>
                             <button id="retry-turn-btn" class="btn-secondary" style="display: none;">やり直し</button>
                             <button id="finish-shadowing-btn" class="btn-success" style="display: none;">完了</button>
-                        </div>
-                        <div class="keyboard-hint" id="keyboard-hint">
-                            <small>※ エンターキーで進行可能です</small>
                         </div>
                         <div class="recording-status" id="recording-status" style="display: none;">
                             <div class="recording-indicator"></div>
@@ -248,7 +248,7 @@
         <div class="modal-content large">
             <div class="modal-header">
                 <h3>シャドーイング結果</h3>
-                <button class="modal-close">&times;</button>
+                <button class="modal-close modal-back-link">戻る</button>
             </div>
             <div class="modal-body">
                 <div class="result-summary">
@@ -261,9 +261,7 @@
                     <!-- ターン別結果がここに表示される -->
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn-primary modal-close">閉じる</button>
-            </div>
+            
         </div>
     </div>
 
