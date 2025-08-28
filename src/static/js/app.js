@@ -276,6 +276,10 @@ class ShadowingApp {
                 document.body.style.overflow = 'hidden';
                 // 結果タブを表示
                 this.switchTab('results');
+                // 最新の結果を再取得して反映
+                if (this.currentExercise && this.currentExercise.id) {
+                    this.loadExerciseResults(this.currentExercise.id);
+                }
             }
             return;
         }
@@ -329,9 +333,11 @@ class ShadowingApp {
     }
 
     // 課題一覧読み込み
-    async loadExercises(sortBy = 'created_at:desc') {
+    async loadExercises(sortBy = 'created_at:desc', silent = false) {
         try {
-            this.showLoading('課題一覧を読み込み中...');
+            if (!silent) {
+                this.showLoading('課題一覧を読み込み中...');
+            }
             const [sortField, sortOrder] = sortBy.split(':');
             
             const response = await this.apiCall(`/api/exercises/?sort_by=${sortField}&order=${sortOrder}`);
@@ -344,7 +350,9 @@ class ShadowingApp {
         } catch (error) {
             this.showError('課題一覧の読み込みに失敗しました: ' + error.message);
         } finally {
-            this.hideLoading();
+            if (!silent) {
+                this.hideLoading();
+            }
         }
     }
 
@@ -938,6 +946,14 @@ class ShadowingApp {
             });
 
             if (response.success) {
+                // 結果保存直後に結果一覧を更新
+                if (this.currentExercise && this.currentExercise.id) {
+                    this.loadExerciseResults(this.currentExercise.id);
+                }
+                // 課題一覧（最高スコア・最終実施日・実施回数）をサイレント更新（現在のソートを維持）
+                const sortSelect = document.getElementById('sort-select');
+                const currentSort = sortSelect && sortSelect.value ? sortSelect.value : 'created_at:desc';
+                this.loadExercises(currentSort, true);
                 this.showResult(response.data);
             } else {
                 this.showError(response.message);
