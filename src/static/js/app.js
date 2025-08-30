@@ -176,8 +176,8 @@ class ShadowingApp {
             this.nextTurn();
         });
 
-        document.getElementById('retry-turn-btn').addEventListener('click', () => {
-            this.retryTurn();
+        document.getElementById('restart-from-beginning-btn').addEventListener('click', () => {
+            this.restartFromBeginning();
         });
 
         document.getElementById('finish-shadowing-btn').addEventListener('click', () => {
@@ -631,7 +631,7 @@ class ShadowingApp {
         const turnTextContent = document.getElementById('turn-text-content');
         const startBtn = document.getElementById('start-turn-btn');
         const nextBtn = document.getElementById('next-turn-btn');
-        const retryBtn = document.getElementById('retry-turn-btn');
+        const restartBtn = document.getElementById('restart-from-beginning-btn');
         const finishBtn = document.getElementById('finish-shadowing-btn');
 
         if (this.currentTurn < this.totalTurns) {
@@ -641,13 +641,13 @@ class ShadowingApp {
             
             startBtn.style.display = 'inline-block';
             nextBtn.style.display = 'none';
-            retryBtn.style.display = 'none';
+            restartBtn.style.display = 'none';
             finishBtn.style.display = 'none';
         } else {
             turnTextContent.textContent = 'すべてのターンが完了しました';
             startBtn.style.display = 'none';
             nextBtn.style.display = 'none';
-            retryBtn.style.display = 'none';
+            restartBtn.style.display = 'none';
             finishBtn.style.display = 'inline-block';
         }
     }
@@ -736,10 +736,10 @@ class ShadowingApp {
 
     // 音声再生完了時の処理
     onAudioPlaybackComplete() {
-        // UI更新：「次へ」ボタンとやり直しボタンを表示
+        // UI更新：「次へ」ボタンと「最初から」ボタンを表示
         document.getElementById('start-turn-btn').style.display = 'none';  
         document.getElementById('next-turn-btn').style.display = 'inline-block';
-        document.getElementById('retry-turn-btn').style.display = 'inline-block';
+        document.getElementById('restart-from-beginning-btn').style.display = 'inline-block';
         
         // キーボードヒントを再表示
         const keyboardHint = document.getElementById('keyboard-hint');
@@ -895,16 +895,23 @@ class ShadowingApp {
         }
     }
 
-    // やり直し
-    async retryTurn() {
+    // 最初から
+    async restartFromBeginning() {
         // 録音中の場合は停止を待つ
         if (this.isRecording) {
             await this.stopRecording();
         }
         
-        this.updateShadowingDisplay();
-        // 現在のターンを再実行
-        await this.startTurn();
+        // シャドーイング音声を停止
+        if (this.shadowingAudio) {
+            this.shadowingAudio.pause();
+            this.shadowingAudio = null;
+        }
+        
+        // シャドーイングを初期状態にリセット
+        if (this.currentExercise && this.currentExercise.turns) {
+            await this.initShadowing(this.currentExercise.turns);
+        }
     }
 
     // シャドーイング完了
