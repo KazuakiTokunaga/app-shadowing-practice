@@ -1,3 +1,4 @@
+import asyncio
 import json
 from typing import List
 
@@ -12,6 +13,13 @@ from ..models.schemas import Result as ResultSchema
 from ..services.openai_service import OpenAIService, ScoringService
 
 router = APIRouter(prefix="/api/shadowing", tags=["shadowing"])
+
+
+def _extract_extension(filename: str | None) -> str:
+    """ファイル名から拡張子を安全に抽出する。未指定や不正な場合は webm を返す。"""
+    if not filename or "." not in filename:
+        return "webm"
+    return filename.rsplit(".", 1)[-1]
 
 
 @router.get("/{exercise_id}/listen", response_model=APIResponse)
@@ -90,8 +98,8 @@ async def transcribe_turn_audio(
         # 音声ファイルの内容を読み取り
         audio_data = await audio_file.read()
 
-        # ファイル名から拡張子を取得
-        file_extension = audio_file.filename.split(".")[-1] if "." in audio_file.filename else "webm"
+        # ファイル名から拡張子を取得（安全化）
+        file_extension = _extract_extension(audio_file.filename)
 
         # Whisper APIで書き起こし
         transcription = await OpenAIService.transcribe_audio(audio_data, file_extension=file_extension)
@@ -133,15 +141,23 @@ async def transcribe_batch_audio(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="音声ファイルの数とターンIDの数が一致しません"
             )
 
-        # 各ターンの音声を書き起こし
-        transcriptions = []
-        for i, audio_file in enumerate(audio_files):
-            audio_data = await audio_file.read()
-            # ファイル名から拡張子を取得
-            file_extension = audio_file.filename.split(".")[-1] if "." in audio_file.filename else "webm"
-            transcription = await OpenAIService.transcribe_audio(audio_data, file_extension=file_extension)
+        # 各ターンの音声を書き起こし（並列・上限5）
+        audio_datas = []
+        file_extensions = []
+        for audio_file in audio_files:
+            audio_datas.append(await audio_file.read())
+            file_extensions.append(_extract_extension(audio_file.filename))
 
-            transcriptions.append({"turn_id": turn_id_list[i], "transcription": transcription})
+        sem = asyncio.Semaphore(5)
+
+        async def transcribe_one(i: int) -> str:
+            async with sem:
+                return await OpenAIService.transcribe_audio(audio_datas[i], file_extension=file_extensions[i])
+
+        tasks = [asyncio.create_task(transcribe_one(i)) for i in range(len(audio_datas))]
+        results = await asyncio.gather(*tasks)
+
+        transcriptions = [{"turn_id": turn_id_list[i], "transcription": results[i]} for i in range(len(results))]
 
         return APIResponse(success=True, data=transcriptions, message="音声の一括書き起こしが完了しました")
 

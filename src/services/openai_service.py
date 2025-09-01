@@ -2,6 +2,7 @@ import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List
+from uuid import uuid4
 
 import aiofiles
 from dotenv import load_dotenv
@@ -117,17 +118,15 @@ class OpenAIService:
         """
         temp_file_path = None
         try:
-            # 一時ファイルに音声データを保存（正しい拡張子を使用）
-            temp_file_path = f"src/audio/temp/temp_audio.{file_extension}"
-
-            # tempディレクトリが存在しない場合は作成
-            os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
+            # 一時ファイルをユニーク名で作成（並列時の競合を回避）
+            temp_dir = "src/audio/temp"
+            os.makedirs(temp_dir, exist_ok=True)
+            temp_file_path = os.path.join(temp_dir, f"temp_audio_{uuid4().hex}.{file_extension}")
 
             async with aiofiles.open(temp_file_path, "wb") as f:
                 await f.write(audio_data)
 
             # Whisper APIで転写
-            # プロンプトを追加して最初の認識精度を向上
             with open(temp_file_path, "rb") as audio_file:
                 response = await client.audio.transcriptions.create(
                     model="whisper-1",
