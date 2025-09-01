@@ -547,7 +547,10 @@ class ShadowingApp {
     }
 
     // タブ切り替え
-    switchTab(tabName) {
+    async switchTab(tabName) {
+        // いまシャドーイングタブが表示中かを先に判定（離脱検知のため）
+        const shadowingTabEl = document.getElementById('shadowing-tab');
+        const wasShadowingActive = shadowingTabEl && shadowingTabEl.classList.contains('active');
         // タブボタンの状態更新
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.tab === tabName);
@@ -564,6 +567,11 @@ class ShadowingApp {
             this.resetAudioPlayer();
         }
 
+        // シャドーイング実行中のまま他タブへ移動した場合、録音停止と状態リセット
+        if (tabName !== 'shadowing' && wasShadowingActive) {
+            await this.resetShadowingOnLeave();
+        }
+
         // タブ固有の初期化処理
         if (tabName === 'shadowing') {
             if (this.currentExercise && this.currentExercise.turns) {
@@ -571,6 +579,57 @@ class ShadowingApp {
             } else {
                 console.error('課題情報が見つかりません');
             }
+        }
+    }
+
+    // シャドーイングタブ離脱時のクリーンアップ（録音停止・途中データ破棄・UI初期化）
+    async resetShadowingOnLeave() {
+        try {
+            // 録音中であれば停止
+            if (this.isRecording) {
+                await this.stopRecording();
+            }
+
+            // 再生中のシャドーイング音声を停止
+            if (this.shadowingAudio) {
+                this.shadowingAudio.pause();
+                this.shadowingAudio = null;
+            }
+
+            // タイムアウトをクリア
+            if (this.recordingTimeoutId) {
+                clearTimeout(this.recordingTimeoutId);
+                this.recordingTimeoutId = null;
+            }
+
+            // 途中経過データを破棄
+            this.recordings = [];
+            this.audioChunks = [];
+            this.currentTurn = 0;
+
+            // UIを初期状態に戻す（スクリーンショット相当）
+            const currentTurnDisplay = document.getElementById('current-turn');
+            if (currentTurnDisplay) {
+                currentTurnDisplay.textContent = '1';
+            }
+            const turnTextContent = document.getElementById('turn-text-content');
+            if (turnTextContent) {
+                turnTextContent.textContent = '音声を聞いてシャドーイングしてください';
+            }
+            const startBtn = document.getElementById('start-turn-btn');
+            const nextBtn = document.getElementById('next-turn-btn');
+            const restartBtn = document.getElementById('restart-from-beginning-btn');
+            const finishBtn = document.getElementById('finish-shadowing-btn');
+            if (startBtn) startBtn.style.display = 'inline-block';
+            if (nextBtn) nextBtn.style.display = 'none';
+            if (restartBtn) restartBtn.style.display = 'none';
+            if (finishBtn) finishBtn.style.display = 'none';
+            const recordingStatus = document.getElementById('recording-status');
+            if (recordingStatus) recordingStatus.style.display = 'none';
+            const keyboardHint = document.getElementById('keyboard-hint');
+            if (keyboardHint) keyboardHint.style.display = 'block';
+        } catch (e) {
+            console.error('シャドーイング状態のリセットに失敗:', e);
         }
     }
 
