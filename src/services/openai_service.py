@@ -24,6 +24,7 @@ class OpenAIService:
         仕様:
         - ターンは1つもしくは複数の文からなり、ターンの区切りは文末になっている
         - 文末は句読点（. ! ?）を基準とする
+        - U.S. などの略語、小数点、a.m./p.m. 等は文末と誤検出しない
         - 各ターンに含める文の決定は次のように決める:
           - 前から文を見てターンを決定していく
           - いまみている文が10単語以上であるならば、その文だけでターンとする
@@ -38,8 +39,52 @@ class OpenAIService:
             ターン分割されたデータのリスト
         """
         try:
-            # 文を句読点で分割し、句読点を含めて保持
-            sentences = re.split(r"([.!?])", content.strip())
+            # 前処理: 略語や小数点中のピリオドを一時的に保護
+            DOT_PH = "∯"  # ピリオドのプレースホルダ（テキスト中に現れにくい文字）
+            ELLIPSIS_PH = "⋯"
+
+            text = content.strip()
+
+            # 省略記号 ... を保護
+            text = text.replace("...", ELLIPSIS_PH)
+
+            # 小数点 (例: 3.14) を保護
+            text = re.sub(r"(?<=\d)\.(?=\d)", DOT_PH, text)
+
+            # 連続頭字語 (例: U.S., U.S.A.) のピリオドを保護
+            def _protect_initials(match: re.Match[str]) -> str:
+                return match.group(0).replace(".", DOT_PH)
+
+            text = re.sub(r"\b(?:[A-Za-z]\.){2,}", _protect_initials, text)
+
+            # 一般的な略語のピリオドを保護（文中分割を避ける）
+            abbreviations = [
+                "Mr.",
+                "Mrs.",
+                "Ms.",
+                "Dr.",
+                "Prof.",
+                "Sr.",
+                "Jr.",
+                "St.",
+                "vs.",
+                "etc.",
+                "e.g.",
+                "i.e.",
+                "a.m.",
+                "p.m.",
+                "U.S.",
+                "U.K.",
+                "U.N.",
+                "E.U.",
+                "U.A.E.",
+                "U.S.A.",
+            ]
+            for abbr in abbreviations:
+                text = re.sub(re.escape(abbr), abbr.replace(".", DOT_PH), text)
+
+            # 文を句読点で分割し、句読点を含めて保持（保護したピリオドは分割対象外）
+            sentences = re.split(r"([.!?])", text)
 
             # 文と句読点をペアにして再構築
             complete_sentences = []
@@ -49,11 +94,15 @@ class OpenAIService:
                 if sentence:  # 空文字でない場合
                     # 次の要素が句読点かチェック
                     if i + 1 < len(sentences) and sentences[i + 1] in ".!?":
-                        complete_sentences.append(sentence + sentences[i + 1])
+                        # プレースホルダを元に戻す
+                        combined = sentence + sentences[i + 1]
+                        combined = combined.replace(DOT_PH, ".").replace(ELLIPSIS_PH, "...")
+                        complete_sentences.append(combined)
                         i += 2
                     else:
-                        # 句読点がない場合はピリオドを追加
-                        complete_sentences.append(sentence + ".")
+                        # 句読点がない場合（文末が無句読点のケース）はピリオドを追加
+                        restored = sentence.replace(DOT_PH, ".").replace(ELLIPSIS_PH, "...")
+                        complete_sentences.append(restored + ".")
                         i += 1
                 else:
                     i += 1
@@ -80,7 +129,6 @@ class OpenAIService:
                     # 10単語を超えるまで次の文を追加
                     while i < len(complete_sentences) and current_word_count < 10:
                         next_sentence = complete_sentences[i]
-                        next_word_count = len(next_sentence.split())
 
                         # 次の文を追加した場合の単語数を計算
                         test_turn = current_turn + " " + next_sentence
@@ -102,7 +150,7 @@ class OpenAIService:
             return turns
 
         except Exception as e:
-            raise Exception(f"ターン分割に失敗しました: {str(e)}")
+            raise Exception(f"ターン分割に失敗しました: {str(e)}") from e
 
     @staticmethod
     async def transcribe_audio(audio_data: bytes, file_extension: str = "webm") -> str:
@@ -144,7 +192,7 @@ class OpenAIService:
             # エラーの場合も一時ファイルを削除
             if temp_file_path and os.path.exists(temp_file_path):
                 os.remove(temp_file_path)
-            raise Exception(f"音声認識に失敗しました: {str(e)}")
+            raise Exception(f"音声認識に失敗しました: {str(e)}") from e
 
     @staticmethod
     async def generate_speech(text: str, voice: str = "alloy", speed: float = 1.5, hd: bool = True) -> bytes:
@@ -176,7 +224,7 @@ class OpenAIService:
             return response.content
 
         except Exception as e:
-            raise Exception(f"音声生成に失敗しました: {str(e)}")
+            raise Exception(f"音声生成に失敗しました: {str(e)}") from e
 
     @staticmethod
     async def generate_turn_audio_batch(
@@ -218,7 +266,7 @@ class OpenAIService:
             return updated_turns
 
         except Exception as e:
-            raise Exception(f"音声一括生成に失敗しました: {str(e)}")
+            raise Exception(f"音声一括生成に失敗しました: {str(e)}") from e
 
     @staticmethod
     async def generate_full_audio(
@@ -252,7 +300,7 @@ class OpenAIService:
             return str(audio_file_path)
 
         except Exception as e:
-            raise Exception(f"全体音声生成に失敗しました: {str(e)}")
+            raise Exception(f"全体音声生成に失敗しました: {str(e)}") from e
 
 
 class ScoringService:
