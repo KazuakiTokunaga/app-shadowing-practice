@@ -1471,43 +1471,78 @@ class ShadowingApp {
     setupKeyboardListeners() {
         // キャプチャフェーズでイベントを捕捉（第3引数をtrueに）
         document.addEventListener('keydown', (event) => {
-            // エンターキーが押された場合
+            const detailModal = document.getElementById('exercise-detail-modal');
+            if (!(detailModal && detailModal.classList.contains('active'))) {
+                return;
+            }
+
+            const activeElement = document.activeElement;
+            const isTypingElement = activeElement && (
+                activeElement.tagName === 'INPUT' ||
+                activeElement.tagName === 'TEXTAREA' ||
+                activeElement.isContentEditable === true
+            );
+            const isRangeControl = activeElement && activeElement.tagName === 'INPUT' && activeElement.type === 'range';
+
+            // 左右キーでタブ切替（入力中やシーク中は無効化）
+            if ((event.key === 'ArrowRight' || event.key === 'ArrowLeft') && !isTypingElement && !isRangeControl) {
+                const tabButtons = Array.from(detailModal.querySelectorAll('.tab-btn'));
+                if (tabButtons.length === 0) return;
+                const currentIndex = tabButtons.findIndex(btn => btn.classList.contains('active'));
+                if (currentIndex === -1) return;
+
+                const delta = event.key === 'ArrowRight' ? 1 : -1;
+                const nextIndex = (currentIndex + delta + tabButtons.length) % tabButtons.length;
+                const nextTabName = tabButtons[nextIndex].dataset.tab;
+                event.preventDefault();
+                event.stopPropagation();
+                this.switchTab(nextTabName);
+                return;
+            }
+
+            // エンターキー：シャドーイング/リスニングの操作
             if (event.key === 'Enter') {
-                // 課題詳細モーダルが開いている場合
-                const detailModal = document.getElementById('exercise-detail-modal');
-                
-                if (detailModal && detailModal.classList.contains('active')) {
-                    // シャドーイングタブがアクティブな場合
-                    const shadowingTab = document.getElementById('shadowing-tab');
-                    
-                    if (shadowingTab && shadowingTab.classList.contains('active')) {
-                        // 「開始」ボタンが表示されている場合
-                        const startBtn = document.getElementById('start-turn-btn');
-                        if (startBtn && startBtn.offsetParent !== null) {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            this.startTurn();
-                            return;
-                        }
-                        
-                        // 「次へ」ボタンが表示されている場合
-                        const nextBtn = document.getElementById('next-turn-btn');
-                        if (nextBtn && nextBtn.offsetParent !== null) {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            this.nextTurn();
-                            return;
-                        }
-                        
-                        // 「完了」ボタンが表示されている場合
-                        const finishBtn = document.getElementById('finish-shadowing-btn');
-                        if (finishBtn && finishBtn.offsetParent !== null) {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            this.finishShadowing();
-                            return;
-                        }
+                // シャドーイングタブがアクティブな場合（既存挙動）
+                const shadowingTab = document.getElementById('shadowing-tab');
+                if (shadowingTab && shadowingTab.classList.contains('active')) {
+                    const startBtn = document.getElementById('start-turn-btn');
+                    if (startBtn && startBtn.offsetParent !== null) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        this.startTurn();
+                        return;
                     }
+
+                    const nextBtn = document.getElementById('next-turn-btn');
+                    if (nextBtn && nextBtn.offsetParent !== null) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        this.nextTurn();
+                        return;
+                    }
+
+                    const finishBtn = document.getElementById('finish-shadowing-btn');
+                    if (finishBtn && finishBtn.offsetParent !== null) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        this.finishShadowing();
+                        return;
+                    }
+                }
+
+                // リスニングタブがアクティブな場合：再生/一時停止をトグル
+                const listeningTab = document.getElementById('listen-tab');
+                if (listeningTab && listeningTab.classList.contains('active')) {
+                    // 入力中やシーク中はEnterを無視
+                    if (isTypingElement || isRangeControl) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (this.listeningAudio && !this.listeningAudio.paused) {
+                        this.pauseFullAudio();
+                    } else {
+                        this.playFullAudio();
+                    }
+                    return;
                 }
             }
         }, true); // キャプチャフェーズでイベントを処理
