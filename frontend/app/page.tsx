@@ -46,7 +46,9 @@ export default function HomePage() {
     loadExercises();
   }, [loadExercises]);
 
-  const wordCount = createContent.trim() ? createContent.trim().split(/\s+/).filter(Boolean).length : 0;
+  const wordCount = createContent.trim()
+    ? createContent.trim().split(/\s+/).filter(Boolean).length
+    : 0;
   const canSubmit = createTitle.trim() && wordCount >= 50 && wordCount <= 300;
 
   const handleCreate = async () => {
@@ -103,9 +105,7 @@ export default function HomePage() {
         </select>
       </div>
 
-      {error && (
-        <p className="text-red-600 mb-4">エラー: {error}</p>
-      )}
+      {error && <p className="text-red-600 mb-4">エラー: {error}</p>}
 
       {loading ? (
         <p className="text-[#7f8c8d] py-8">読み込み中...</p>
@@ -121,18 +121,28 @@ export default function HomePage() {
               href={`/exercises/${ex.id}`}
               className="block bg-white rounded-lg p-4 shadow border border-[#e1e8ed] hover:border-[#c3d0db] hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer"
             >
-              <h3 className="text-[#2c3e50] font-semibold text-base mb-1">{ex.title}</h3>
+              <h3 className="text-[#2c3e50] font-semibold text-base mb-1">
+                {ex.title}
+              </h3>
               <div className="text-[#7f8c8d] text-xs mb-2">
                 作成日: {formatDate(ex.created_at)}
                 {ex.last_practiced_at && (
-                  <><br />最終実施: {formatDate(ex.last_practiced_at)}</>
+                  <>
+                    <br />
+                    最終実施: {formatDate(ex.last_practiced_at)}
+                  </>
                 )}
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-[#2ecc71] font-semibold">
-                  最高スコア: {ex.max_score != null ? `${ex.max_score.toFixed(1)}%` : "未実施"}
+                  最高スコア:{" "}
+                  {ex.max_score != null
+                    ? `${ex.max_score.toFixed(1)}%`
+                    : "未実施"}
                 </span>
-                <span className="text-[#7f8c8d]">実施回数: {ex.attempt_count}回</span>
+                <span className="text-[#7f8c8d]">
+                  実施回数: {ex.attempt_count}回
+                </span>
               </div>
             </Link>
           ))}
@@ -152,7 +162,10 @@ export default function HomePage() {
             <h3 className="text-lg font-semibold mb-4">新しい課題を作成</h3>
             <div className="space-y-4">
               <div>
-                <label htmlFor="exercise-title" className="block text-sm font-medium mb-1">
+                <label
+                  htmlFor="exercise-title"
+                  className="block text-sm font-medium mb-1"
+                >
                   タイトル（必須）
                 </label>
                 <input
@@ -165,7 +178,10 @@ export default function HomePage() {
                 />
               </div>
               <div>
-                <label htmlFor="exercise-content" className="block text-sm font-medium mb-1">
+                <label
+                  htmlFor="exercise-content"
+                  className="block text-sm font-medium mb-1"
+                >
                   英文（50-300単語）
                 </label>
                 <textarea
@@ -176,10 +192,14 @@ export default function HomePage() {
                   placeholder="英文を入力..."
                   className="w-full px-3 py-2 border rounded"
                 />
-                <p className="text-sm text-[#7f8c8d] mt-1">単語数: {wordCount}</p>
+                <p className="text-sm text-[#7f8c8d] mt-1">
+                  単語数: {wordCount}
+                </p>
               </div>
             </div>
-            {createError && <p className="text-red-600 text-sm mt-2">エラー: {createError}</p>}
+            {createError && (
+              <p className="text-red-600 text-sm mt-2">エラー: {createError}</p>
+            )}
             <div className="flex justify-end gap-2 mt-6">
               <button
                 type="button"

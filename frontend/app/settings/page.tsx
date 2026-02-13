@@ -4,8 +4,17 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchSettings, updateSettings, resetSettings } from "@/lib/api";
 
 const VOICES = [
-  "alloy", "ash", "ballad", "coral", "echo", "fable",
-  "onyx", "nova", "sage", "shimmer", "verse",
+  "alloy",
+  "ash",
+  "ballad",
+  "coral",
+  "echo",
+  "fable",
+  "onyx",
+  "nova",
+  "sage",
+  "shimmer",
+  "verse",
 ];
 
 export default function SettingsPage() {
@@ -14,7 +23,10 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "ok" | "error";
+    text: string;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,7 +62,10 @@ export default function SettingsPage() {
         setMessage({ type: "error", text: res.message });
       }
     } catch (e) {
-      setMessage({ type: "error", text: e instanceof Error ? e.message : "保存に失敗しました" });
+      setMessage({
+        type: "error",
+        text: e instanceof Error ? e.message : "保存に失敗しました",
+      });
     } finally {
       setSaveLoading(false);
     }
@@ -71,7 +86,10 @@ export default function SettingsPage() {
         setMessage({ type: "error", text: res.message });
       }
     } catch (e) {
-      setMessage({ type: "error", text: e instanceof Error ? e.message : "リセットに失敗しました" });
+      setMessage({
+        type: "error",
+        text: e instanceof Error ? e.message : "リセットに失敗しました",
+      });
     } finally {
       setResetLoading(false);
     }
@@ -86,20 +104,28 @@ export default function SettingsPage() {
       <h2 className="text-2xl font-light text-[#2c3e50] mb-8">設定</h2>
       <div className="max-w-md space-y-6">
         <div>
-          <label htmlFor="speech-rate" className="block font-medium mb-2">読み上げ速度</label>
+          <label htmlFor="speech-rate" className="block font-medium mb-2">
+            読み上げ速度
+          </label>
           <select
             id="speech-rate"
             value={speechRate}
             onChange={(e) => setSpeechRate(e.target.value)}
             className="w-full p-2 border border-[#ddd] rounded"
           >
-            {[1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0].map((r) => (
-              <option key={r} value={String(r)}>{r}倍</option>
-            ))}
+            {[1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0].map(
+              (r) => (
+                <option key={r} value={String(r)}>
+                  {r}倍
+                </option>
+              )
+            )}
           </select>
         </div>
         <div>
-          <label htmlFor="speech-voice" className="block font-medium mb-2">音声の種類</label>
+          <label htmlFor="speech-voice" className="block font-medium mb-2">
+            音声の種類
+          </label>
           <select
             id="speech-voice"
             value={speechVoice}
@@ -107,12 +133,20 @@ export default function SettingsPage() {
             className="w-full p-2 border border-[#ddd] rounded"
           >
             {VOICES.map((v) => (
-              <option key={v} value={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</option>
+              <option key={v} value={v}>
+                {v.charAt(0).toUpperCase() + v.slice(1)}
+              </option>
             ))}
           </select>
         </div>
         {message && (
-          <p className={message.type === "ok" ? "text-green-600" : "text-red-600"}>{message.text}</p>
+          <p
+            className={
+              message.type === "ok" ? "text-green-600" : "text-red-600"
+            }
+          >
+            {message.text}
+          </p>
         )}
         <div className="flex gap-2">
           <button

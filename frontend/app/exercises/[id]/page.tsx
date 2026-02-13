@@ -69,9 +69,12 @@ function compareTexts(original: string, recognized: string): string {
       const isAlphabetic = /^[a-zA-Z']+$/.test(word);
       const ok = matched.has(idx) || !isAlphabetic;
       const escaped = escapeHtml(word);
-      const span = ok ? escaped : `<span class="text-red-600 font-semibold">${escaped}</span>`;
+      const span = ok
+        ? escaped
+        : `<span class="text-red-600 font-semibold">${escaped}</span>`;
       const next = origWords[idx + 1];
-      const needSpace = next && !/^[^\w\s]$/.test(word) && !/^[^\w\s]$/.test(next);
+      const needSpace =
+        next && !/^[^\w\s]$/.test(word) && !/^[^\w\s]$/.test(next);
       return span + (needSpace ? " " : "");
     })
     .join("");
@@ -240,7 +243,11 @@ export default function ExerciseDetailPage() {
     if (!exercise || currentTurn >= exercise.turns.length) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
       });
       const options: MediaRecorderOptions = {
         mimeType: "audio/webm;codecs=opus",
@@ -255,7 +262,9 @@ export default function ExerciseDetailPage() {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: options.mimeType || "audio/webm" });
+        const blob = new Blob(chunksRef.current, {
+          type: options.mimeType || "audio/webm",
+        });
         setRecordings((prev) => {
           const next = [...prev];
           next[currentTurn] = blob;
@@ -278,12 +287,18 @@ export default function ExerciseDetailPage() {
         audio.play().catch(console.error);
       }, 1000);
     } catch (e) {
-      alert("マイクへのアクセスが拒否されました: " + (e instanceof Error ? e.message : ""));
+      alert(
+        "マイクへのアクセスが拒否されました: " +
+          (e instanceof Error ? e.message : "")
+      );
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state === "recording"
+    ) {
       mediaRecorderRef.current.stop();
       setRecording(false);
     }
@@ -327,7 +342,8 @@ export default function ExerciseDetailPage() {
       });
       formData.append("turn_ids", JSON.stringify(turnIds));
       const transRes = await transcribeBatch(exercise.id, formData);
-      if (!transRes.success || !transRes.data) throw new Error("書き起こしに失敗しました");
+      if (!transRes.success || !transRes.data)
+        throw new Error("書き起こしに失敗しました");
       const transcriptions = transRes.data.map((x) => x.transcription);
       const saveRes = await saveShadowingResult(exercise.id, transcriptions);
       if (saveRes.success && saveRes.data) {
@@ -338,7 +354,9 @@ export default function ExerciseDetailPage() {
         throw new Error(saveRes.message);
       }
     } catch (e) {
-      alert("結果の保存に失敗しました: " + (e instanceof Error ? e.message : ""));
+      alert(
+        "結果の保存に失敗しました: " + (e instanceof Error ? e.message : "")
+      );
     } finally {
       setShadowingLoading(false);
     }
@@ -354,7 +372,9 @@ export default function ExerciseDetailPage() {
     return (
       <div>
         <p className="text-red-600">{error || "課題が見つかりません"}</p>
-        <Link href="/" className="text-[#3498db] underline mt-4 inline-block">一覧へ戻る</Link>
+        <Link href="/" className="text-[#3498db] underline mt-4 inline-block">
+          一覧へ戻る
+        </Link>
       </div>
     );
   }
@@ -369,7 +389,9 @@ export default function ExerciseDetailPage() {
   return (
     <div>
       <div className="flex items-center gap-4 mb-6">
-        <Link href="/" className="text-[#3498db] hover:underline">← 一覧へ</Link>
+        <Link href="/" className="text-[#3498db] hover:underline">
+          ← 一覧へ
+        </Link>
         <h2 className="text-2xl font-light text-[#2c3e50]">{exercise.title}</h2>
       </div>
 
@@ -411,7 +433,10 @@ export default function ExerciseDetailPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setTitleEdit(false); setEditTitleValue(exercise.title); }}
+                  onClick={() => {
+                    setTitleEdit(false);
+                    setEditTitleValue(exercise.title);
+                  }}
                   className="px-4 py-2 bg-[#95a5a6] text-white rounded"
                 >
                   キャンセル
@@ -438,12 +463,15 @@ export default function ExerciseDetailPage() {
               rows={8}
               className="w-full p-3 border rounded bg-[#f8f9fa]"
             />
-            <p className="text-sm text-[#7f8c8d] mt-1">{exercise.word_count} 単語</p>
+            <p className="text-sm text-[#7f8c8d] mt-1">
+              {exercise.word_count} 単語
+            </p>
           </div>
           <div>
             <label className="block font-medium mb-1">音声設定</label>
             <p className="text-[#6c757d]">
-              再生速度: {exercise.speech_rate.toFixed(1)}倍 / 音声: {exercise.speech_voice}
+              再生速度: {exercise.speech_rate.toFixed(1)}倍 / 音声:{" "}
+              {exercise.speech_voice}
             </p>
           </div>
           <button
@@ -480,7 +508,9 @@ export default function ExerciseDetailPage() {
               </button>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm w-12 text-center">{formatTime(audioCurrent)}</span>
+              <span className="text-sm w-12 text-center">
+                {formatTime(audioCurrent)}
+              </span>
               <input
                 type="range"
                 min={0}
@@ -489,10 +519,16 @@ export default function ExerciseDetailPage() {
                 onChange={(e) => seekAudio(parseFloat(e.target.value))}
                 className="flex-1"
               />
-              <span className="text-sm w-12 text-center">{formatTime(audioDuration)}</span>
+              <span className="text-sm w-12 text-center">
+                {formatTime(audioDuration)}
+              </span>
             </div>
           </div>
-          <audio ref={audioRef} src={fullAudioUrl(exercise.id)} preload="metadata" />
+          <audio
+            ref={audioRef}
+            src={fullAudioUrl(exercise.id)}
+            preload="metadata"
+          />
         </div>
       )}
 
@@ -509,17 +545,29 @@ export default function ExerciseDetailPage() {
           </p>
           <div className="flex gap-2 flex-wrap">
             {currentTurn < exercise.turns.length && !showNext && !recording && (
-              <button type="button" onClick={startTurn} className="px-5 py-2 bg-[#3498db] text-white rounded">
+              <button
+                type="button"
+                onClick={startTurn}
+                className="px-5 py-2 bg-[#3498db] text-white rounded"
+              >
                 開始
               </button>
             )}
             {showNext && currentTurn + 1 < exercise.turns.length && (
-              <button type="button" onClick={nextTurn} className="px-5 py-2 bg-[#3498db] text-white rounded">
+              <button
+                type="button"
+                onClick={nextTurn}
+                className="px-5 py-2 bg-[#3498db] text-white rounded"
+              >
                 次へ
               </button>
             )}
             {showNext && (
-              <button type="button" onClick={restartShadowing} className="px-5 py-2 bg-[#95a5a6] text-white rounded">
+              <button
+                type="button"
+                onClick={restartShadowing}
+                className="px-5 py-2 bg-[#95a5a6] text-white rounded"
+              >
                 最初から
               </button>
             )}
@@ -557,8 +605,12 @@ export default function ExerciseDetailPage() {
                   onClick={() => setResultDetail(r)}
                   className="w-full text-left p-4 bg-white border rounded hover:border-[#3498db] flex justify-between"
                 >
-                  <span className="font-semibold text-[#2ecc71]">{r.total_score.toFixed(1)}%</span>
-                  <span className="text-sm text-[#7f8c8d]">{formatDateTime(r.completed_at)}</span>
+                  <span className="font-semibold text-[#2ecc71]">
+                    {r.total_score.toFixed(1)}%
+                  </span>
+                  <span className="text-sm text-[#7f8c8d]">
+                    {formatDateTime(r.completed_at)}
+                  </span>
                 </button>
               ))}
             </div>
@@ -578,7 +630,11 @@ export default function ExerciseDetailPage() {
           >
             <div className="flex justify-between items-center p-4 border-b">
               <h3 className="text-lg font-semibold">シャドーイング結果</h3>
-              <button type="button" onClick={() => setResultDetail(null)} className="text-xl text-[#7f8c8d]">
+              <button
+                type="button"
+                onClick={() => setResultDetail(null)}
+                className="text-xl text-[#7f8c8d]"
+              >
                 ×
               </button>
             </div>
@@ -591,7 +647,9 @@ export default function ExerciseDetailPage() {
                   <div key={tr.turn_id} className="border rounded p-3">
                     <div className="flex justify-between text-sm mb-2">
                       <span className="font-bold">ターン {tr.turn_id}</span>
-                      <span className="text-[#2ecc71]">{tr.score.toFixed(1)}%</span>
+                      <span className="text-[#2ecc71]">
+                        {tr.score.toFixed(1)}%
+                      </span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
