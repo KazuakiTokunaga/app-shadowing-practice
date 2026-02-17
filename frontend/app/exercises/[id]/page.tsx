@@ -4,50 +4,63 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
-  fetchExercise,
-  updateExerciseTitle,
-  deleteExercise,
   fullAudioUrl,
   turnAudioUrl,
-  fetchShadowingResults,
   saveShadowingResult,
   transcribeBatch,
-  type Exercise as ExerciseType,
-  type Result as ResultType,
 } from "@/lib/api";
 import { formatDateTime, formatTime } from "@/lib/utils/format";
 import {
   compareTextsToWords,
   compareWordsToHighlightHtml,
 } from "@/lib/utils/compare";
+import { useExercise } from "@/lib/hooks/useExercise";
+import { useShadowingResults } from "@/lib/hooks/useShadowingResults";
+import { useAudioPlayback } from "@/lib/hooks/useAudioPlayback";
 
 type TabId = "detail" | "listen" | "shadowing" | "results";
 
 export default function ExerciseDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const id = Number(params?.id);
-  const [exercise, setExercise] = useState<ExerciseType | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const id = Number(params?.id) || null;
   const [tab, setTab] = useState<TabId>("detail");
 
-  // 詳細タブ: タイトル編集
+  const {
+    exercise,
+    loading,
+    error,
+    reload: reloadExercise,
+    updateTitle,
+    deleteExercise: removeExercise,
+    savingTitle,
+  } = useExercise(id);
+
+  const {
+    results,
+    reload: reloadResults,
+    resultDetail,
+    setResultDetail,
+  } = useShadowingResults(id, { enabled: tab === "results" });
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const {
+    currentTime: audioCurrent,
+    duration: audioDuration,
+    playing: audioPlaying,
+    play: playAudio,
+    pause: pauseAudio,
+    seek: seekAudio,
+  } = useAudioPlayback(audioRef, { active: tab === "listen" });
+
   const [titleEdit, setTitleEdit] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState("");
-  const [savingTitle, setSavingTitle] = useState(false);
 
-  // 結果一覧・結果詳細
-  const [results, setResults] = useState<ResultType[]>([]);
-  const [resultDetail, setResultDetail] = useState<ResultType | null>(null);
+  useEffect(() => {
+    if (exercise) setEditTitleValue(exercise.title);
+  }, [exercise?.id, exercise?.title]);
 
-  // リスニング: 音声
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [audioCurrent, setAudioCurrent] = useState(0);
-  const [audioDuration, setAudioDuration] = useState(0);
-  const [audioPlaying, setAudioPlaying] = useState(false);
-
-  // シャドーイング
+  // シャドーイング（Web 依存: MediaRecorder）
   const [currentTurn, setCurrentTurn] = useState(0);
   const [recordings, setRecordings] = useState<Blob[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -56,124 +69,23 @@ export default function ExerciseDetailPage() {
   const [showNext, setShowNext] = useState(false);
   const [shadowingLoading, setShadowingLoading] = useState(false);
 
-  const loadExercise = useCallback(async () => {
-    if (!id || Number.isNaN(id)) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetchExercise(id);
-      if (res.success && res.data) {
-        setExercise(res.data);
-        setEditTitleValue(res.data.title);
-      } else {
-        setError(res.message);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "読み込みに失敗しました");
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  const loadResults = useCallback(async () => {
-    if (!id) return;
-    try {
-      const res = await fetchShadowingResults(id);
-      if (res.success && res.data) setResults(res.data);
-    } catch {
-      // ignore
-    }
-  }, [id]);
-
-  useEffect(() => {
-    loadExercise();
-  }, [loadExercise]);
-
-  useEffect(() => {
-    if (tab === "results") loadResults();
-  }, [tab, loadResults]);
-
-  // 音声の timeupdate
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const onTimeUpdate = () => setAudioCurrent(audio.currentTime);
-    const onLoadedMetadata = () => setAudioDuration(audio.duration);
-    const onEnded = () => setAudioPlaying(false);
-    const onPlay = () => setAudioPlaying(true);
-    const onPause = () => setAudioPlaying(false);
-    audio.addEventListener("timeupdate", onTimeUpdate);
-    audio.addEventListener("loadedmetadata", onLoadedMetadata);
-    audio.addEventListener("ended", onEnded);
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-    return () => {
-      audio.removeEventListener("timeupdate", onTimeUpdate);
-      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
-      audio.removeEventListener("ended", onEnded);
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-    };
-  }, [exercise?.id, tab]);
-
   const handleSaveTitle = async () => {
-    if (!exercise || !editTitleValue.trim()) return;
-    setSavingTitle(true);
-    try {
-      const res = await updateExerciseTitle(exercise.id, editTitleValue.trim());
-      if (res.success && res.data) {
-        setExercise(res.data);
-        setTitleEdit(false);
-      }
-    } finally {
-      setSavingTitle(false);
-    }
+    const ok = await updateTitle(editTitleValue);
+    if (ok) setTitleEdit(false);
   };
 
   const handleDelete = async () => {
     if (!exercise || !confirm("この課題を削除してもよろしいですか？")) return;
-    try {
-      const res = await deleteExercise(exercise.id);
-      if (res.success) {
-        router.push("/");
-      }
-    } catch (e) {
-      alert("削除に失敗しました: " + (e instanceof Error ? e.message : ""));
-    }
+    const ok = await removeExercise();
+    if (ok) router.push("/");
+    else alert("削除に失敗しました");
   };
 
   const playFullAudio = () => {
-    if (!exercise) return;
-    const url = fullAudioUrl(exercise.id);
-    if (!audioRef.current) {
-      const a = new Audio(url);
-      audioRef.current = a;
-      a.addEventListener("loadedmetadata", () => setAudioDuration(a.duration));
-      a.addEventListener("timeupdate", () => setAudioCurrent(a.currentTime));
-      a.addEventListener("ended", () => setAudioPlaying(false));
-      a.play().then(() => setAudioPlaying(true));
-    } else {
-      if (audioRef.current.src !== url) {
-        audioRef.current.src = url;
-        audioRef.current.load();
-      }
-      audioRef.current.play().then(() => setAudioPlaying(true));
-    }
+    if (exercise) playAudio(fullAudioUrl(exercise.id));
   };
 
-  const pauseFullAudio = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      setAudioPlaying(false);
-    }
-  };
-
-  const seekAudio = (value: number) => {
-    if (audioRef.current && !Number.isNaN(audioRef.current.duration)) {
-      audioRef.current.currentTime = value;
-      setAudioCurrent(value);
-    }
-  };
+  const pauseFullAudio = () => pauseAudio();
 
 
   // シャドーイング: 開始
@@ -286,8 +198,8 @@ export default function ExerciseDetailPage() {
       const saveRes = await saveShadowingResult(exercise.id, transcriptions);
       if (saveRes.success && saveRes.data) {
         setResultDetail(saveRes.data);
-        loadResults();
-        loadExercise();
+        reloadResults();
+        reloadExercise();
       } else {
         throw new Error(saveRes.message);
       }

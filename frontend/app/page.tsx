@@ -1,44 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import {
-  fetchExercises,
-  createExercise,
-  type ExerciseList as ExerciseListType,
-} from "@/lib/api";
 import { formatDate } from "@/lib/utils/format";
+import { useExercises } from "@/lib/hooks/useExercises";
+import { useCreateExercise } from "@/lib/hooks/useCreateExercise";
 
 export default function HomePage() {
-  const [exercises, setExercises] = useState<ExerciseListType[]>([]);
-  const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState("created_at:desc");
-  const [error, setError] = useState<string | null>(null);
+  const { exercises, loading, error, reload } = useExercises(sort);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [createTitle, setCreateTitle] = useState("");
   const [createContent, setCreateContent] = useState("");
-  const [createLoading, setCreateLoading] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
 
-  const loadExercises = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [sortBy, order] = sort.split(":");
-      const res = await fetchExercises(sortBy, order);
-      if (res.success && res.data) setExercises(res.data);
-      else setError(res.message);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "読み込みに失敗しました");
-    } finally {
-      setLoading(false);
-    }
-  }, [sort]);
-
-  useEffect(() => {
-    loadExercises();
-  }, [loadExercises]);
+  const { create, loading: createLoading, error: createError } =
+    useCreateExercise({
+      onSuccess: () => {
+        setModalOpen(false);
+        setCreateTitle("");
+        setCreateContent("");
+        reload();
+      },
+    });
 
   const wordCount = createContent.trim()
     ? createContent.trim().split(/\s+/).filter(Boolean).length
@@ -47,26 +31,10 @@ export default function HomePage() {
 
   const handleCreate = async () => {
     if (!canSubmit) return;
-    setCreateLoading(true);
-    setCreateError(null);
-    try {
-      const res = await createExercise({
-        title: createTitle.trim(),
-        content: createContent.trim(),
-      });
-      if (res.success) {
-        setModalOpen(false);
-        setCreateTitle("");
-        setCreateContent("");
-        loadExercises();
-      } else {
-        setCreateError(res.message);
-      }
-    } catch (e) {
-      setCreateError(e instanceof Error ? e.message : "作成に失敗しました");
-    } finally {
-      setCreateLoading(false);
-    }
+    await create({
+      title: createTitle.trim(),
+      content: createContent.trim(),
+    });
   };
 
   return (
