@@ -15,70 +15,13 @@ import {
   type Exercise as ExerciseType,
   type Result as ResultType,
 } from "@/lib/api";
+import { formatDateTime, formatTime } from "@/lib/utils/format";
+import {
+  compareTextsToWords,
+  compareWordsToHighlightHtml,
+} from "@/lib/utils/compare";
 
 type TabId = "detail" | "listen" | "shadowing" | "results";
-
-function formatDateTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString("ja-JP", {
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
-
-function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-// テキスト比較で不一致箇所をハイライト用にマーク
-function compareTexts(original: string, recognized: string): string {
-  const origWords = original.match(/\b[\w']+\b|[^\w\s]/g) || [];
-  const recWords = recognized.match(/\b[\w']+\b|[^\w\s]/g) || [];
-  const dp: number[][] = Array(origWords.length + 1)
-    .fill(null)
-    .map(() => Array(recWords.length + 1).fill(0));
-  for (let i = 1; i <= origWords.length; i++) {
-    for (let j = 1; j <= recWords.length; j++) {
-      if (origWords[i - 1].toLowerCase() === recWords[j - 1].toLowerCase()) {
-        dp[i][j] = dp[i - 1][j - 1] + 1;
-      } else {
-        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
-      }
-    }
-  }
-  const matched = new Set<number>();
-  let i = origWords.length,
-    j = recWords.length;
-  while (i > 0 && j > 0) {
-    if (origWords[i - 1].toLowerCase() === recWords[j - 1].toLowerCase()) {
-      matched.add(i - 1);
-      i--;
-      j--;
-    } else if (dp[i - 1][j] > dp[i][j - 1]) i--;
-    else j--;
-  }
-  return origWords
-    .map((word, idx) => {
-      const isAlphabetic = /^[a-zA-Z']+$/.test(word);
-      const ok = matched.has(idx) || !isAlphabetic;
-      const escaped = escapeHtml(word);
-      const span = ok
-        ? escaped
-        : `<span class="text-red-600 font-semibold">${escaped}</span>`;
-      const next = origWords[idx + 1];
-      const needSpace =
-        next && !/^[^\w\s]$/.test(word) && !/^[^\w\s]$/.test(next);
-      return span + (needSpace ? " " : "");
-    })
-    .join("");
-}
 
 export default function ExerciseDetailPage() {
   const params = useParams();
@@ -232,11 +175,6 @@ export default function ExerciseDetailPage() {
     }
   };
 
-  const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  };
 
   // シャドーイング: 開始
   const startTurn = async () => {
@@ -657,7 +595,9 @@ export default function ExerciseDetailPage() {
                         <p
                           className="leading-relaxed"
                           dangerouslySetInnerHTML={{
-                            __html: compareTexts(tr.original, tr.recognized),
+                            __html: compareWordsToHighlightHtml(
+                              compareTextsToWords(tr.original, tr.recognized),
+                            ),
                           }}
                         />
                       </div>
