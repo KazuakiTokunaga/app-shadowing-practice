@@ -1,6 +1,6 @@
 # シャドーイング練習アプリ
 
-個人使用向けの英語シャドーイング練習アプリケーションです。OpenAI APIを活用した音声処理で、効果的なシャドーイング練習を行うことができます。ローカル環境での使用を前提としています
+個人使用向けの英語シャドーイング練習アプリケーションです。OpenAI APIを活用した音声処理で、効果的なシャドーイング練習を行うことができます。フロントエンド（Next.js）とバックエンド（FastAPI）が分離された構成です。
 
 ## 主な機能
 
@@ -15,9 +15,42 @@
 ### 前提条件
 
 - Python 3.10+
+- Node.js 20.9+（フロントエンド用。Next.js 16 の要件）
 - uv パッケージマネージャー
 - OpenAI API キー
 - Google Chrome ブラウザ（推奨）
+
+#### Node.js のバージョン（フロントエンド）
+
+現在 Node.js 18 の場合は、次のいずれかで Node 20 を用意してください。
+
+**nvm を使う場合（推奨）**
+
+1. [nvm](https://github.com/nvm-sh/nvm) を未導入ならインストール:
+   ```bash
+   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+   ```
+   インストール後、ターミナルを開き直す。
+
+2. Node 20 をインストールして使用:
+   ```bash
+   nvm install 20
+   nvm use 20
+   ```
+   または、フロントエンドのディレクトリで（`frontend/.nvmrc` に 20 と書いてあるので）:
+   ```bash
+   cd frontend
+   nvm use
+   ```
+   とすると Node 20 に切り替わります。
+
+**Homebrew で Node 20 を入れる場合**
+
+```bash
+brew install node@20
+```
+
+その後、フロントエンドの起動時は `node@20` が使われるように PATH を合わせてから `npm run dev` を実行してください。
 
 ### 利用手順
 
@@ -27,15 +60,20 @@ git clone https://github.com/KazuakiTokunaga/app-shadowing-practice.git
 cd app-shadowing-practice
 ```
 
-2. 依存関係をインストール
+2. **バックエンド**の依存関係をインストール
 ```bash
 uv sync
 ```
 
 3. 環境変数を設定
 ```bash
+# バックエンド用
 cp .env.example .env
-# .envファイルを編集してOPENAI_API_KEYを設定
+# .env を編集して OPENAI_API_KEY を設定（必要に応じて CORS_ORIGINS も設定）
+
+# フロントエンド用（バックエンドのURLを指定）
+cp frontend/.env.local.example frontend/.env.local
+# 開発時は http://localhost:8000 のままでOK
 ```
 
 4. データベースを初期化
@@ -43,19 +81,24 @@ cp .env.example .env
 uv run python init_db.py
 ```
 
-5. アプリケーションを起動
+5. **バックエンド**を起動（ターミナル1）
 ```bash
-# 開発モード
 uv run python -m src.app
-
-# または
-uvicorn src.app:app --reload --host 0.0.0.0 --port 8000
+# または: uvicorn src.app:app --reload --host 127.0.0.1 --port 8000
 ```
 
-6. ブラウザでアクセス
+6. **フロントエンド**を起動（ターミナル2）
+```bash
+cd frontend
+npm install
+npm run dev
 ```
-http://localhost:8000
+
+7. ブラウザでアクセス
 ```
+http://localhost:3000
+```
+（バックエンドは http://localhost:8000 でAPIのみ提供）
 
 ## 使用方法
 
@@ -83,42 +126,37 @@ http://localhost:8000
 
 ### 技術スタック
 
-- **フロントエンド**: HTML5, CSS3, JavaScript (ES6+)
-- **バックエンド**: Python 3.10+ (FastAPI)
+- **フロントエンド**: Next.js (App Router), TypeScript, Tailwind CSS
+- **バックエンド**: Python 3.10+ (FastAPI)、API専用（HTML/静的配信なし）
 - **データベース**: SQLite3
 - **AI/音声処理**: OpenAI API (Whisper, TTS)
   - 音声作成: gpt-4o-mini-tts
   - 書き起こし: whisper-1
-- **パッケージ管理**: uv
+- **パッケージ管理**: uv（バックエンド）, npm（フロントエンド）
 
 ### プロジェクト構造
 
 ```
 app-shadowing-practice/
+├── frontend/               # Next.js フロントエンド
+│   ├── app/                # App Router ページ
+│   │   ├── page.tsx        # 課題一覧
+│   │   ├── settings/       # 設定ページ
+│   │   └── exercises/[id]  # 課題詳細（詳細/リスニング/シャドーイング/結果）
+│   ├── lib/                # APIクライアント・型定義
+│   └── .env.local.example
 ├── src/
-│   ├── app.py              # FastAPIメインアプリケーション
-│   ├── models/             # SQLAlchemyモデル
-│   │   ├── database.py     # データベース設定
-│   │   ├── models.py       # データモデル
-│   │   └── schemas.py      # Pydanticスキーマ
-│   ├── routes/             # FastAPI ルーター
-│   │   ├── exercises.py    # 課題管理API
-│   │   ├── shadowing.py    # シャドーイング機能API
-│   │   ├── audio.py        # 音声ファイル管理API
-│   │   └── settings.py     # 設定管理API
-│   ├── services/           # ビジネスロジック
-│   │   └── openai_service.py # OpenAI API連携
-│   ├── static/             # 静的ファイル
-│   │   ├── css/style.css   # スタイルシート
-│   │   ├── js/app.js       # フロントエンドアプリケーション
-│   │   └── templates/index.html # HTMLテンプレート
+│   ├── app.py              # FastAPIメイン（API専用・CORS対応）
+│   ├── models/
+│   ├── routes/             # APIルーター
+│   ├── services/
 │   └── audio/              # 生成された音声ファイル
-├── tests/                  # テストファイル
-├── docs/                   # ドキュメント
-├── .env.example           # 環境変数テンプレート
-├── init_db.py             # データベース初期化スクリプト
-├── pyproject.toml         # プロジェクト設定・依存関係
-└── README.md              # このファイル
+├── tests/
+├── docs/
+├── .env.example            # バックエンド用（CORS_ORIGINS は任意）
+├── init_db.py
+├── pyproject.toml
+└── README.md
 ```
 
 ### ドキュメント

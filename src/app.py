@@ -2,10 +2,8 @@ import os
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 
 from .models.database import Base, engine
 from .routes import audio, exercises, settings, shadowing
@@ -36,17 +34,25 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS設定（開発時のみ）
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:8000", "http://127.0.0.1:8000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# 静的ファイルのマウント
-app.mount("/static", StaticFiles(directory="src/static"), name="static")
+# CORS設定（ローカル検証用に全オリジン許可。本番では CORS_ORIGINS で制限すること）
+_cors_origins_env = os.getenv("CORS_ORIGINS", "").strip()
+if _cors_origins_env:
+    _cors_origins = [o.strip() for o in _cors_origins_env.split(",") if o.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # ルーターの登録
 app.include_router(exercises.router)
@@ -55,30 +61,10 @@ app.include_router(audio.router)
 app.include_router(settings.router)
 
 
-@app.get("/", response_class=HTMLResponse)
-async def read_root():
-    """ルートページ - メインのSPAページを返す"""
-    try:
-        with open("src/static/templates/index.html", "r", encoding="utf-8") as f:
-            html_content = f.read()
-        return HTMLResponse(content=html_content, status_code=200)
-    except FileNotFoundError:
-        return HTMLResponse(
-            content="<h1>エラー: テンプレートファイルが見つかりません</h1>",
-            status_code=500
-        )
-
-
 @app.get("/health")
 async def health_check():
     """ヘルスチェックエンドポイント"""
     return {"status": "healthy", "message": "シャドーイングアプリは正常に動作しています"}
-
-
-@app.exception_handler(404)
-async def not_found_handler(request: Request, exc):
-    """404エラーハンドラー - SPAなので全てのパスでindex.htmlを返す"""
-    return await read_root()
 
 
 def start_dev_server():
