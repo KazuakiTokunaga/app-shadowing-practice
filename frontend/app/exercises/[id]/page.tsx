@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
+import { useNavigation } from "@/lib/navigation";
 import {
   fullAudioUrl,
   turnAudioUrl,
@@ -17,12 +18,13 @@ import {
 import { useExercise } from "@/lib/hooks/useExercise";
 import { useShadowingResults } from "@/lib/hooks/useShadowingResults";
 import { useAudioPlayback } from "@/lib/hooks/useAudioPlayback";
+import { useRecording } from "@/lib/recording";
 
 type TabId = "detail" | "listen" | "shadowing" | "results";
 
 export default function ExerciseDetailPage() {
   const params = useParams();
-  const router = useRouter();
+  const navigation = useNavigation();
   const id = Number(params?.id) || null;
   const [tab, setTab] = useState<TabId>("detail");
 
@@ -60,12 +62,10 @@ export default function ExerciseDetailPage() {
     if (exercise) setEditTitleValue(exercise.title);
   }, [exercise?.id, exercise?.title]);
 
-  // シャドーイング（Web 依存: MediaRecorder）
+  const recordingSession = useRecording();
+
   const [currentTurn, setCurrentTurn] = useState(0);
   const [recordings, setRecordings] = useState<Blob[]>([]);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const [recording, setRecording] = useState(false);
   const [showNext, setShowNext] = useState(false);
   const [shadowingLoading, setShadowingLoading] = useState(false);
 
@@ -77,7 +77,7 @@ export default function ExerciseDetailPage() {
   const handleDelete = async () => {
     if (!exercise || !confirm("この課題を削除してもよろしいですか？")) return;
     const ok = await removeExercise();
-    if (ok) router.push("/");
+    if (ok) navigation.navigateToHome();
     else alert("削除に失敗しました");
   };
 
@@ -87,53 +87,16 @@ export default function ExerciseDetailPage() {
 
   const pauseFullAudio = () => pauseAudio();
 
-
-  // シャドーイング: 開始
-  const startTurn = async () => {
-    if (!exercise || currentTurn >= exercise.turns.length) return;
+  const startTurn = async (turnIndex?: number) => {
+    const index = turnIndex ?? currentTurn;
+    if (!exercise || index >= exercise.turns.length) return;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-        },
-      });
-      const options: MediaRecorderOptions = {
-        mimeType: "audio/webm;codecs=opus",
-        audioBitsPerSecond: 128000,
-      };
-      if (!MediaRecorder.isTypeSupported(options.mimeType!)) {
-        options.mimeType = "audio/webm";
-      }
-      const recorder = new MediaRecorder(stream, options);
-      chunksRef.current = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, {
-          type: options.mimeType || "audio/webm",
-        });
-        setRecordings((prev) => {
-          const next = [...prev];
-          next[currentTurn] = blob;
-          return next;
-        });
-        stream.getTracks().forEach((t) => t.stop());
-      };
-      recorder.start(50);
-      mediaRecorderRef.current = recorder;
-      setRecording(true);
+      await recordingSession.start();
       setShowNext(false);
-
-      // 1秒後にターン音声再生
+      const turn = exercise.turns[index];
       setTimeout(() => {
-        const turn = exercise.turns[currentTurn];
         const audio = new Audio(turnAudioUrl(exercise.id, turn.id));
-        audio.onended = () => {
-          setShowNext(true);
-        };
+        audio.onended = () => setShowNext(true);
         audio.play().catch(console.error);
       }, 1000);
     } catch (e) {
@@ -144,38 +107,43 @@ export default function ExerciseDetailPage() {
     }
   };
 
-  const stopRecording = () => {
-    if (
-      mediaRecorderRef.current &&
-      mediaRecorderRef.current.state === "recording"
-    ) {
-      mediaRecorderRef.current.stop();
-      setRecording(false);
-    }
-  };
-
   const nextTurn = async () => {
-    stopRecording();
-    if (currentTurn + 1 < (exercise?.turns.length ?? 0)) {
-      setCurrentTurn((c) => c + 1);
+    const blob = await recordingSession.stop();
+    if (blob) {
+      setRecordings((prev) => {
+        const next = [...prev];
+        next[currentTurn] = blob;
+        return next;
+      });
+    }
+    const nextIndex = currentTurn + 1;
+    if (nextIndex < (exercise?.turns.length ?? 0)) {
+      setCurrentTurn(nextIndex);
       setShowNext(false);
-      setTimeout(() => startTurn(), 100);
+      setTimeout(() => startTurn(nextIndex), 100);
     } else {
       setShowNext(false);
     }
   };
 
-  const restartShadowing = () => {
-    stopRecording();
+  const restartShadowing = async () => {
+    await recordingSession.stop();
     setCurrentTurn(0);
     setRecordings([]);
     setShowNext(false);
   };
 
   const finishShadowing = async () => {
-    stopRecording();
-    if (!exercise || recordings.length === 0) return;
-    const validRecordings = recordings.filter(Boolean);
+    const lastBlob = await recordingSession.stop();
+    if (!exercise) return;
+    let validRecordings = recordings.filter(Boolean);
+    if (
+      lastBlob != null &&
+      validRecordings.length === currentTurn &&
+      currentTurn < exercise.turns.length
+    ) {
+      validRecordings = [...validRecordings, lastBlob];
+    }
     if (validRecordings.length !== exercise.turns.length) {
       alert("全ターンの録音が完了していません");
       return;
@@ -212,10 +180,17 @@ export default function ExerciseDetailPage() {
     }
   };
 
+  const hasAllRecordings = recordings.filter(Boolean).length === exercise?.turns.length;
+  const isOnLastTurnWithRecording =
+    exercise &&
+    currentTurn === exercise.turns.length - 1 &&
+    showNext &&
+    recordings.filter(Boolean).length === currentTurn;
   const canFinishShadowing =
     exercise &&
-    currentTurn >= exercise.turns.length &&
-    recordings.filter(Boolean).length === exercise.turns.length;
+    (hasAllRecordings ||
+      isOnLastTurnWithRecording) &&
+    (currentTurn >= exercise.turns.length - 1);
 
   if (loading) return <p className="text-[#7f8c8d]">読み込み中...</p>;
   if (error || !exercise) {
@@ -394,10 +369,10 @@ export default function ExerciseDetailPage() {
               : "すべてのターンが完了しました"}
           </p>
           <div className="flex gap-2 flex-wrap">
-            {currentTurn < exercise.turns.length && !showNext && !recording && (
+            {currentTurn < exercise.turns.length && !showNext && !recordingSession.isRecording && (
               <button
                 type="button"
-                onClick={startTurn}
+                onClick={() => startTurn()}
                 className="px-5 py-2 bg-[#3498db] text-white rounded"
               >
                 開始
@@ -432,7 +407,7 @@ export default function ExerciseDetailPage() {
               </button>
             )}
           </div>
-          {recording && (
+          {recordingSession.isRecording && (
             <div className="mt-4 flex items-center gap-2 text-red-600">
               <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
               録音中...

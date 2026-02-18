@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { WebNavigationProvider } from "@/lib/navigation";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -34,7 +35,9 @@ export default function RootLayout({
             </Link>
           </nav>
         </header>
-        <main className="max-w-6xl mx-auto p-8">{children}</main>
+        <WebNavigationProvider>
+          <main className="max-w-6xl mx-auto p-8">{children}</main>
+        </WebNavigationProvider>
       </body>
     </html>
   );
