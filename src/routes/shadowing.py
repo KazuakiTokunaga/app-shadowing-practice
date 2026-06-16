@@ -10,7 +10,8 @@ from ..models.database import get_db
 from ..models.models import Exercise, Result
 from ..models.schemas import APIResponse, TurnResult
 from ..models.schemas import Result as ResultSchema
-from ..services.openai_service import OpenAIService, ScoringService
+from ..services.scoring_service import ScoringService
+from ..services.transcription_service import TranscriptionService
 
 router = APIRouter(prefix="/api/shadowing", tags=["shadowing"])
 
@@ -101,8 +102,7 @@ async def transcribe_turn_audio(
         # ファイル名から拡張子を取得（安全化）
         file_extension = _extract_extension(audio_file.filename)
 
-        # Whisper APIで書き起こし
-        transcription = await OpenAIService.transcribe_audio(audio_data, file_extension=file_extension)
+        transcription = await TranscriptionService.transcribe_audio(audio_data, file_extension=file_extension)
 
         data = {"turn_id": turn_id, "transcription": transcription}
 
@@ -152,7 +152,7 @@ async def transcribe_batch_audio(
 
         async def transcribe_one(i: int) -> str:
             async with sem:
-                return await OpenAIService.transcribe_audio(audio_datas[i], file_extension=file_extensions[i])
+                return await TranscriptionService.transcribe_audio(audio_datas[i], file_extension=file_extensions[i])
 
         tasks = [asyncio.create_task(transcribe_one(i)) for i in range(len(audio_datas))]
         results = await asyncio.gather(*tasks)

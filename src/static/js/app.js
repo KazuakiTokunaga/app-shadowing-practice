@@ -17,9 +17,97 @@ class ShadowingApp {
         this.init();
     }
 
+    getVoiceLabel(voice) {
+        const voiceLabels = {
+            'alloy': 'Alloy',
+            'ash': 'Ash',
+            'ballad': 'Ballad',
+            'coral': 'Coral',
+            'echo': 'Echo',
+            'fable': 'Fable',
+            'onyx': 'Onyx',
+            'nova': 'Nova',
+            'sage': 'Sage',
+            'shimmer': 'Shimmer',
+            'verse': 'Verse',
+            'en-US-Ethan:MAI-Voice-2': 'Ethan (en-US)',
+            'en-US-Grant:MAI-Voice-2': 'Grant (en-US)',
+            'en-US-Harper:MAI-Voice-2': 'Harper (en-US)',
+            'en-US-Iris:MAI-Voice-2': 'Iris (en-US)',
+            'en-US-Jasper:MAI-Voice-2': 'Jasper (en-US)',
+            'en-US-Olivia:MAI-Voice-2': 'Olivia (en-US)'
+        };
+        return voiceLabels[voice] || voice;
+    }
+
+    getVoiceOptions(model) {
+        if (model === 'MAI-Voice-2') {
+            return [
+                { value: 'en-US-Ethan:MAI-Voice-2', label: 'Ethan (en-US)' },
+                { value: 'en-US-Grant:MAI-Voice-2', label: 'Grant (en-US)' },
+                { value: 'en-US-Harper:MAI-Voice-2', label: 'Harper (en-US)' },
+                { value: 'en-US-Iris:MAI-Voice-2', label: 'Iris (en-US)' },
+                { value: 'en-US-Jasper:MAI-Voice-2', label: 'Jasper (en-US)' },
+                { value: 'en-US-Olivia:MAI-Voice-2', label: 'Olivia (en-US)' }
+            ];
+        }
+
+        return [
+            { value: 'alloy', label: 'Alloy' },
+            { value: 'ash', label: 'Ash' },
+            { value: 'ballad', label: 'Ballad' },
+            { value: 'coral', label: 'Coral' },
+            { value: 'echo', label: 'Echo' },
+            { value: 'fable', label: 'Fable' },
+            { value: 'onyx', label: 'Onyx' },
+            { value: 'nova', label: 'Nova' },
+            { value: 'sage', label: 'Sage' },
+            { value: 'shimmer', label: 'Shimmer' },
+            { value: 'verse', label: 'Verse' }
+        ];
+    }
+
+    getDefaultVoiceForModel(model) {
+        const voiceOptions = this.getVoiceOptions(model);
+        return voiceOptions[0].value;
+    }
+
+    isVoiceAllowedForModel(voice, model) {
+        return this.getVoiceOptions(model).some(option => option.value === voice);
+    }
+
+    renderVoiceOptions(model, selectedVoice = null) {
+        const speechVoiceSelect = document.getElementById('speech-voice');
+        const voiceOptions = this.getVoiceOptions(model);
+        speechVoiceSelect.innerHTML = '';
+
+        voiceOptions.forEach(option => {
+            const optionElement = document.createElement('option');
+            optionElement.value = option.value;
+            optionElement.textContent = option.label;
+            speechVoiceSelect.appendChild(optionElement);
+        });
+
+        const availableValues = voiceOptions.map(option => option.value);
+        speechVoiceSelect.value = availableValues.includes(selectedVoice) ? selectedVoice : voiceOptions[0].value;
+        speechVoiceSelect.dataset.model = model;
+    }
+
+    syncVoiceOptionsWithSelectedModel() {
+        const speechModelSelect = document.getElementById('speech-model');
+        const speechVoiceSelect = document.getElementById('speech-voice');
+        const selectedModel = speechModelSelect.value || 'gpt-4o-mini-tts';
+        const currentVoice = speechVoiceSelect.value;
+
+        if (speechVoiceSelect.dataset.model !== selectedModel || !this.isVoiceAllowedForModel(currentVoice, selectedModel)) {
+            this.renderVoiceOptions(selectedModel, currentVoice);
+        }
+    }
+
     init() {
         this.setupEventListeners();
         this.setupKeyboardListeners();
+        this.syncVoiceOptionsWithSelectedModel();
         this.loadExercises();
         this.loadSettings();
     }
@@ -106,6 +194,36 @@ class ShadowingApp {
         // 読み上げ速度の変更イベント
         document.getElementById('speech-rate').addEventListener('change', (e) => {
             console.log('Speech rate changed to:', e.target.value);
+        });
+
+        document.getElementById('speech-model').addEventListener('change', (e) => {
+            this.renderVoiceOptions(e.target.value);
+        });
+
+        document.getElementById('speech-model').addEventListener('input', (e) => {
+            this.renderVoiceOptions(e.target.value);
+        });
+
+        document.getElementById('speech-model').addEventListener('focus', () => {
+            this.syncVoiceOptionsWithSelectedModel();
+        });
+
+        const speechVoiceSelect = document.getElementById('speech-voice');
+        speechVoiceSelect.addEventListener('pointerdown', () => {
+            this.syncVoiceOptionsWithSelectedModel();
+        });
+        speechVoiceSelect.addEventListener('focus', () => {
+            this.syncVoiceOptionsWithSelectedModel();
+        });
+
+        window.addEventListener('pageshow', () => {
+            this.syncVoiceOptionsWithSelectedModel();
+        });
+
+        window.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                this.syncVoiceOptionsWithSelectedModel();
+            }
         });
 
 
@@ -221,6 +339,7 @@ class ShadowingApp {
             this.loadExercises();
         } else if (pageName === 'settings') {
             this.loadSettings();
+            this.syncVoiceOptionsWithSelectedModel();
         }
     }
 
@@ -507,10 +626,13 @@ class ShadowingApp {
         // 音声再生速度を表示
         const speechRate = exercise.speech_rate || 1.0;
         document.getElementById('detail-speech-rate').textContent = speechRate.toFixed(1);
+
+        const speechModel = exercise.speech_model || 'gpt-4o-mini-tts';
+        document.getElementById('detail-speech-model').textContent = speechModel;
         
         // 音声の種類を表示（頭文字を大文字に）
         const speechVoice = exercise.speech_voice || 'alloy';
-        document.getElementById('detail-speech-voice').textContent = speechVoice.charAt(0).toUpperCase() + speechVoice.slice(1);
+        document.getElementById('detail-speech-voice').textContent = this.getVoiceLabel(speechVoice);
         
         // 編集ボタンの表示をリセット
         document.getElementById('edit-title-btn').style.display = 'inline-block';
@@ -1557,8 +1679,13 @@ class ShadowingApp {
                 const settings = response.data;
                 
                 // フォームに設定値を反映
+                const speechModel = settings.speech_model || 'gpt-4o-mini-tts';
+                const speechVoice = this.isVoiceAllowedForModel(settings.speech_voice, speechModel)
+                    ? settings.speech_voice
+                    : this.getDefaultVoiceForModel(speechModel);
                 document.getElementById('speech-rate').value = settings.speech_rate || '1.0';
-                document.getElementById('speech-voice').value = settings.speech_voice || 'alloy';
+                document.getElementById('speech-model').value = speechModel;
+                this.renderVoiceOptions(speechModel, speechVoice);
             }
         } catch (error) {
             console.error('設定の読み込みに失敗:', error);
@@ -1567,8 +1694,16 @@ class ShadowingApp {
 
     // 設定保存
     async saveSettings() {
+        this.syncVoiceOptionsWithSelectedModel();
+
         const speechRate = parseFloat(document.getElementById('speech-rate').value);
-        const speechVoice = document.getElementById('speech-voice').value;
+        const speechModel = document.getElementById('speech-model').value;
+        let speechVoice = document.getElementById('speech-voice').value;
+
+        if (!this.isVoiceAllowedForModel(speechVoice, speechModel)) {
+            speechVoice = this.getDefaultVoiceForModel(speechModel);
+            this.renderVoiceOptions(speechModel, speechVoice);
+        }
 
         try {
             this.showLoading('設定を保存中...');
@@ -1577,11 +1712,18 @@ class ShadowingApp {
                 method: 'PUT',
                 body: JSON.stringify({
                     speech_rate: speechRate,
+                    speech_model: speechModel,
                     speech_voice: speechVoice
                 })
             });
 
             if (response.success) {
+                if (response.data?.speech_model || response.data?.speech_voice) {
+                    const savedModel = response.data.speech_model || speechModel;
+                    const savedVoice = response.data.speech_voice || speechVoice;
+                    document.getElementById('speech-model').value = savedModel;
+                    this.renderVoiceOptions(savedModel, savedVoice);
+                }
                 this.showSuccess('設定を保存しました');
             } else {
                 this.showError(response.message);

@@ -1,6 +1,11 @@
-# シャドーイング練習アプリ
+---
+title: シャドーイング練習アプリ
+description: 英語シャドーイング練習アプリのセットアップ、使い方、開発構成
+---
 
-個人使用向けの英語シャドーイング練習アプリケーションです。OpenAI APIを活用した音声処理で、効果的なシャドーイング練習を行うことができます。ローカル環境での使用を前提としています
+## シャドーイング練習アプリ
+
+個人使用向けの英語シャドーイング練習アプリケーションです。TTS/STTモデルを使った音声処理で、効果的なシャドーイング練習を行うことができます。ローカル環境での使用を前提としています
 
 ## 主な機能
 
@@ -8,7 +13,7 @@
 - **リスニング**: 課題全体の音声を聞いてリスニング練習
 - **シャドーイング**: ターン別に音声を再生し、録音・採点を実行
 - **成績管理**: シャドーイング結果の保存と履歴確認
-- **設定**: 音声の速度と種類を設定可能
+- **設定**: 読み上げ速度、音声モデル、音声の種類を設定可能
 
 ## セットアップ
 
@@ -17,6 +22,7 @@
 - Python 3.10+
 - uv パッケージマネージャー
 - OpenAI API キー
+- Microsoft Foundry API キーとエンドポイントURL（MAI-Voice-2を利用する場合）
 - Google Chrome ブラウザ（推奨）
 
 ### 利用手順
@@ -36,6 +42,7 @@ uv sync
 ```bash
 cp .env.example .env
 # .envファイルを編集してOPENAI_API_KEYを設定
+# MAI-Voice-2を使う場合はFOUNDRY_API_KEYとFOUNDRY_ENDPOINT_URLも設定
 ```
 
 4. データベースを初期化
@@ -53,7 +60,7 @@ uvicorn src.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
 6. ブラウザでアクセス
-```
+```text
 http://localhost:8000
 ```
 
@@ -86,14 +93,15 @@ http://localhost:8000
 - **フロントエンド**: HTML5, CSS3, JavaScript (ES6+)
 - **バックエンド**: Python 3.10+ (FastAPI)
 - **データベース**: SQLite3
-- **AI/音声処理**: OpenAI API (Whisper, TTS)
-  - 音声作成: gpt-4o-mini-tts
+- **AI/音声処理**: TTS/STTプロバイダ
+  - 音声作成: gpt-4o-mini-tts, MAI-Voice-2
   - 書き起こし: whisper-1
+  - 外部モデル呼び出しは `services/model_providers/` に集約
 - **パッケージ管理**: uv
 
 ### プロジェクト構造
 
-```
+```text
 app-shadowing-practice/
 ├── src/
 │   ├── app.py              # FastAPIメインアプリケーション
@@ -107,7 +115,14 @@ app-shadowing-practice/
 │   │   ├── audio.py        # 音声ファイル管理API
 │   │   └── settings.py     # 設定管理API
 │   ├── services/           # ビジネスロジック
-│   │   └── openai_service.py # OpenAI API連携
+│   │   ├── model_providers/         # 外部モデル連携
+│   │   │   ├── tts.py               # TTSプロバイダ
+│   │   │   ├── stt.py               # STTプロバイダ
+│   │   │   └── tts_voices.py        # TTSモデルと音声定義
+│   │   ├── speech_service.py        # 音声生成アプリケーションサービス
+│   │   ├── transcription_service.py # 音声認識アプリケーションサービス
+│   │   ├── turn_service.py          # ターン分割
+│   │   └── scoring_service.py       # 採点
 │   ├── static/             # 静的ファイル
 │   │   ├── css/style.css   # スタイルシート
 │   │   ├── js/app.js       # フロントエンドアプリケーション
@@ -128,7 +143,7 @@ app-shadowing-practice/
 
 ## 注意事項
 
-- 利用すると、OpenAIのAPI費用がかかります
-- OpenAI APIキーは.envファイルで管理し、Gitにコミットしないでください
+- 利用すると、OpenAIやMicrosoft FoundryのAPI費用がかかります
+- APIキーは.envファイルで管理し、Gitにコミットしないでください
 - 音声データは録音後即座に書き起こし処理を行い、永続化されません
 - Google Chrome推奨（Web Audio API使用）

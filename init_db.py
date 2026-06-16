@@ -1,6 +1,7 @@
 """
 データベース初期化スクリプト
 """
+
 import asyncio
 
 from src.models.database import AsyncSessionLocal, Base, engine
@@ -22,6 +23,7 @@ async def init_database():
         # デフォルト設定を確認・挿入
         default_settings = [
             ("speech_rate", "1.0"),
+            ("speech_model", "gpt-4o-mini-tts"),
             ("speech_voice", "alloy"),
             ("volume", "1.0"),
         ]

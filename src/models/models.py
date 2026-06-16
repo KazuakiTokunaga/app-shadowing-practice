@@ -17,6 +17,7 @@ class Exercise(Base):
     turns = Column(Text, nullable=False)  # JSON形式のターン分割データ
     audio_file_path = Column(String(500))  # 全体音声ファイルパス（リスニング用）
     speech_rate = Column(Float, default=1.0)  # 音声再生速度（課題作成時の設定値）
+    speech_model = Column(String(50), default="gpt-4o-mini-tts")  # 音声モデル（課題作成時の設定値）
     speech_voice = Column(String(50), default="alloy")  # 音声の種類（課題作成時の設定値）
     created_at = Column(DateTime, default=func.current_timestamp())
     updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
