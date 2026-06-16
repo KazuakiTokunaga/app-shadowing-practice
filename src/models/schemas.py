@@ -57,6 +57,7 @@ class Exercise(ExerciseBase):
     turns: List[TurnData]
     audio_file_path: Optional[str] = None
     speech_rate: float = 1.0
+    speech_model: str = "gpt-4o-mini-tts"
     speech_voice: str = "alloy"
     created_at: datetime
     updated_at: datetime
@@ -109,6 +110,7 @@ class SettingUpdate(BaseModel):
     """設定更新用"""
 
     speech_rate: Optional[float] = Field(None, ge=1.0, le=2.0)
+    speech_model: Optional[str] = None
     speech_voice: Optional[str] = None
 
 

@@ -11,7 +11,14 @@ from ..models.database import get_db
 from ..models.models import Exercise, Result, Setting
 from ..models.schemas import APIResponse, ExerciseCreate, ExerciseList, TurnData
 from ..models.schemas import Exercise as ExerciseSchema
-from ..services.openai_service import OpenAIService
+from ..services.model_providers import (
+    OPENAI_TTS_MODEL,
+    get_default_voice_for_model,
+    get_model_for_voice,
+    is_voice_allowed_for_model,
+)
+from ..services.speech_service import SpeechService
+from ..services.turn_service import TurnService
 
 router = APIRouter(prefix="/api/exercises", tags=["exercises"])
 
@@ -19,13 +26,22 @@ router = APIRouter(prefix="/api/exercises", tags=["exercises"])
 async def _get_speech_settings(db: AsyncSession) -> dict:
     """音声生成用の設定を取得する"""
     # デフォルト設定（高音質モードは常にTrue）
-    default_settings = {"speech_voice": "alloy", "speech_rate": 1.0, "use_hd_model": True}
+    default_settings = {
+        "speech_rate": 1.0,
+        "speech_model": OPENAI_TTS_MODEL,
+        "speech_voice": "alloy",
+        "use_hd_model": True,
+    }
 
     try:
         # データベースから設定を取得
         voice_stmt = select(Setting).where(Setting.key == "speech_voice")
         voice_result = await db.execute(voice_stmt)
         voice_setting = voice_result.scalar_one_or_none()
+
+        model_stmt = select(Setting).where(Setting.key == "speech_model")
+        model_result = await db.execute(model_stmt)
+        model_setting = model_result.scalar_one_or_none()
 
         rate_stmt = select(Setting).where(Setting.key == "speech_rate")
         rate_result = await db.execute(rate_stmt)
@@ -34,11 +50,20 @@ async def _get_speech_settings(db: AsyncSession) -> dict:
         # 設定値を反映
         if voice_setting:
             default_settings["speech_voice"] = voice_setting.value
+        if model_setting:
+            default_settings["speech_model"] = model_setting.value
+        elif voice_setting:
+            default_settings["speech_model"] = get_model_for_voice(str(voice_setting.value))
         if rate_setting:
             try:
                 default_settings["speech_rate"] = float(rate_setting.value)
             except ValueError:
                 pass  # デフォルト値を使用
+
+        if not is_voice_allowed_for_model(
+            str(default_settings["speech_voice"]), str(default_settings["speech_model"])
+        ):
+            default_settings["speech_voice"] = get_default_voice_for_model(str(default_settings["speech_model"]))
 
         # use_hd_modelは常にTrue（高音質モード固定）
 
@@ -120,7 +145,7 @@ async def create_exercise(exercise_data: ExerciseCreate, db: AsyncSession = Depe
     """新しい課題を作成する"""
     try:
         # 貪欲法アルゴリズムでターン分割
-        turns = OpenAIService.split_turns(exercise_data.content)
+        turns = TurnService.split_turns(exercise_data.content)
 
         # 音声生成用の設定を取得（DBに保存する前に取得）
         speech_settings = await _get_speech_settings(db)
@@ -136,6 +161,7 @@ async def create_exercise(exercise_data: ExerciseCreate, db: AsyncSession = Depe
             word_count=word_count,
             turns=json.dumps(turns, ensure_ascii=False),
             speech_rate=speech_settings["speech_rate"],  # 作成時の再生速度を保存
+            speech_model=speech_settings["speech_model"],  # 作成時の音声モデルを保存
             speech_voice=speech_settings["speech_voice"],  # 作成時の音声の種類を保存
         )
 
@@ -143,21 +169,23 @@ async def create_exercise(exercise_data: ExerciseCreate, db: AsyncSession = Depe
         await db.flush()  # IDを取得するためにflush
 
         # ターン別音声を生成
-        updated_turns = await OpenAIService.generate_turn_audio_batch(
+        updated_turns = await SpeechService.generate_turn_audio_batch(
             turns,
             exercise.id,
             voice=speech_settings["speech_voice"],
             speed=speech_settings["speech_rate"],
             hd=speech_settings["use_hd_model"],
+            speech_model=speech_settings["speech_model"],
         )
 
         # 全体音声を生成（リスニング用）
-        full_audio_path = await OpenAIService.generate_full_audio(
+        full_audio_path = await SpeechService.generate_full_audio(
             exercise_data.content,
             exercise.id,
             voice=speech_settings["speech_voice"],
             speed=speech_settings["speech_rate"],
             hd=speech_settings["use_hd_model"],
+            speech_model=speech_settings["speech_model"],
         )
 
         # 更新されたターンデータと全体音声パスを保存
@@ -176,6 +204,7 @@ async def create_exercise(exercise_data: ExerciseCreate, db: AsyncSession = Depe
             turns=[TurnData(**turn) for turn in updated_turns],
             audio_file_path=exercise.audio_file_path,
             speech_rate=exercise.speech_rate,
+            speech_model=exercise.speech_model or get_model_for_voice(str(exercise.speech_voice)),
             speech_voice=exercise.speech_voice,
             created_at=exercise.created_at,
             updated_at=exercise.updated_at,
@@ -224,6 +253,7 @@ async def get_exercise(exercise_id: int, db: AsyncSession = Depends(get_db)):
             turns=turns,
             audio_file_path=exercise.audio_file_path,
             speech_rate=exercise.speech_rate,
+            speech_model=exercise.speech_model or get_model_for_voice(str(exercise.speech_voice)),
             speech_voice=exercise.speech_voice,
             created_at=exercise.created_at,
             updated_at=exercise.updated_at,
@@ -273,6 +303,7 @@ async def update_exercise_title(exercise_id: int, request: Request, db: AsyncSes
             turns=[TurnData(**turn) for turn in turns_data],
             audio_file_path=exercise.audio_file_path,
             speech_rate=exercise.speech_rate,
+            speech_model=exercise.speech_model or get_model_for_voice(str(exercise.speech_voice)),
             speech_voice=exercise.speech_voice,
             created_at=exercise.created_at,
             updated_at=exercise.updated_at,

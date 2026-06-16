@@ -33,7 +33,7 @@ app = FastAPI(
     title="シャドーイング練習アプリ",
     description="個人使用向けの英語シャドーイング練習アプリケーション",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # CORS設定（開発時のみ）
@@ -63,10 +63,7 @@ async def read_root():
             html_content = f.read()
         return HTMLResponse(content=html_content, status_code=200)
     except FileNotFoundError:
-        return HTMLResponse(
-            content="<h1>エラー: テンプレートファイルが見つかりません</h1>",
-            status_code=500
-        )
+        return HTMLResponse(content="<h1>エラー: テンプレートファイルが見つかりません</h1>", status_code=500)
 
 
 @app.get("/health")
@@ -83,24 +80,12 @@ async def not_found_handler(request: Request, exc):
 
 def start_dev_server():
     """開発サーバーを起動する"""
-    uvicorn.run(
-        "src.app:app",
-        host="127.0.0.1",
-        port=8000,
-        reload=True,
-        log_level="info"
-    )
+    uvicorn.run("src.app:app", host="127.0.0.1", port=8000, reload=True, log_level="info")
 
 
 def start_prod_server():
     """本番サーバーを起動する"""
-    uvicorn.run(
-        "src.app:app",
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", 8000)),
-        reload=False,
-        log_level="warning"
-    )
+    uvicorn.run("src.app:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)), reload=False, log_level="warning")
 
 
 if __name__ == "__main__":
