@@ -30,6 +30,12 @@ class ShadowingApp {
             'sage': 'Sage',
             'shimmer': 'Shimmer',
             'verse': 'Verse',
+            'en-US-Jasper:MAI-Voice-1': 'Jasper (en-US)',
+            'en-US-June:MAI-Voice-1': 'June (en-US)',
+            'en-US-Grant:MAI-Voice-1': 'Grant (en-US)',
+            'en-US-Iris:MAI-Voice-1': 'Iris (en-US)',
+            'en-US-Reed:MAI-Voice-1': 'Reed (en-US)',
+            'en-US-Joy:MAI-Voice-1': 'Joy (en-US)',
             'en-US-Ethan:MAI-Voice-2': 'Ethan (en-US)',
             'en-US-Grant:MAI-Voice-2': 'Grant (en-US)',
             'en-US-Harper:MAI-Voice-2': 'Harper (en-US)',
@@ -41,6 +47,17 @@ class ShadowingApp {
     }
 
     getVoiceOptions(model) {
+        if (model === 'MAI-Voice-1') {
+            return [
+                { value: 'en-US-Jasper:MAI-Voice-1', label: 'Jasper (en-US)' },
+                { value: 'en-US-June:MAI-Voice-1', label: 'June (en-US)' },
+                { value: 'en-US-Grant:MAI-Voice-1', label: 'Grant (en-US)' },
+                { value: 'en-US-Iris:MAI-Voice-1', label: 'Iris (en-US)' },
+                { value: 'en-US-Reed:MAI-Voice-1', label: 'Reed (en-US)' },
+                { value: 'en-US-Joy:MAI-Voice-1', label: 'Joy (en-US)' }
+            ];
+        }
+
         if (model === 'MAI-Voice-2') {
             return [
                 { value: 'en-US-Ethan:MAI-Voice-2', label: 'Ethan (en-US)' },
