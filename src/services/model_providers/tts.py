@@ -8,7 +8,7 @@ import azure.cognitiveservices.speech as speechsdk  # type: ignore[import-untype
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
-from .tts_voices import MAI_TTS_MODEL, OPENAI_TTS_MODEL
+from .tts_voices import MAI_TTS_VOICES_BY_MODEL, OPENAI_TTS_MODEL
 
 load_dotenv()
 
@@ -39,7 +39,7 @@ class MAITTSProvider:
         foundry_api_key = os.getenv("FOUNDRY_API_KEY")
 
         if not foundry_endpoint_url or not foundry_api_key:
-            raise ValueError("MAI-Voice-2を利用するには FOUNDRY_ENDPOINT_URL と FOUNDRY_API_KEY が必要です")
+            raise ValueError("MAI-Voiceを利用するには FOUNDRY_ENDPOINT_URL と FOUNDRY_API_KEY が必要です")
 
         parsed = urlparse(foundry_endpoint_url)
         base_endpoint = f"{parsed.scheme}://{parsed.netloc}"
@@ -63,9 +63,9 @@ class MAITTSProvider:
                 detail = cancellation_details.reason
                 if cancellation_details.reason == speechsdk.CancellationReason.Error:
                     detail = cancellation_details.error_details
-                raise RuntimeError(f"MAI-Voice-2の音声生成がキャンセルされました: {detail}")
+                raise RuntimeError(f"MAI-Voiceの音声生成がキャンセルされました: {detail}")
 
-            raise RuntimeError(f"MAI-Voice-2の音声生成に失敗しました: {result.reason}")
+            raise RuntimeError(f"MAI-Voiceの音声生成に失敗しました: {result.reason}")
 
         return await asyncio.to_thread(synthesize_sync)
 
@@ -87,7 +87,7 @@ class MAITTSProvider:
 class TTSProviderFactory:
     @staticmethod
     def create(speech_model: str) -> TTSProvider:
-        if speech_model == MAI_TTS_MODEL:
+        if speech_model in MAI_TTS_VOICES_BY_MODEL:
             return MAITTSProvider()
         if speech_model == OPENAI_TTS_MODEL:
             return OpenAITTSProvider()
