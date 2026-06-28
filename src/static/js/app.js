@@ -9,6 +9,8 @@ class ShadowingApp {
         this.audioChunks = [];
         this.listeningAudio = null;  // リスニング用音声
         this.shadowingAudio = null;  // シャドーイング用音声
+        this.resultAudio = null;  // 結果画面のターン音声
+        this.playingResultTurnId = null;
         this.isRecording = false;
         this.isEditing = false;
         this.recordingTimeoutId = null;
@@ -385,6 +387,8 @@ class ShadowingApp {
                 this.shadowingAudio.pause();
                 this.shadowingAudio = null;
             }
+
+            this.stopResultAudio();
             
             // 録音停止
             if (this.isRecording) {
@@ -404,6 +408,7 @@ class ShadowingApp {
         
         // result-modalを閉じる際は、結果一覧（exercise-detail-modalのresultsタブ）へ戻す
         if (modalId === 'result-modal') {
+            this.stopResultAudio();
             const detailModal = document.getElementById('exercise-detail-modal');
             if (detailModal) {
                 // 結果詳細モーダルを閉じ、詳細モーダルを再度表示
@@ -1296,6 +1301,7 @@ class ShadowingApp {
     // 結果表示
     showResult(result) {
         console.log('showResult called with:', result);
+        const exerciseId = result.exercise_id || (this.currentExercise && this.currentExercise.id);
         
         // 総合スコア表示
         document.getElementById('total-score').textContent = result.total_score.toFixed(1) + '%';
@@ -1318,8 +1324,12 @@ class ShadowingApp {
             return `
                 <div class="result-turn">
                     <div class="result-turn-header">
-                        <div class="listen-turn-number">${turnResult.turn_id}</div>
-                        <div class="result-turn-score">${turnResult.score.toFixed(1)}%</div>
+                        <div class="result-turn-meta">
+                            <div class="listen-turn-number">${turnResult.turn_id}</div>
+                            <div class="result-turn-score">${turnResult.score.toFixed(1)}%</div>
+                            <button class="result-audio-btn" type="button" data-exercise-id="${exerciseId}" data-turn-id="${turnResult.turn_id}" title="このターンの音声を再生" aria-label="ターン${turnResult.turn_id}の音声を再生"></button>
+                        </div>
+                        <div></div>
                     </div>
                     <div class="result-comparison">
                         <div class="result-original">
@@ -1333,9 +1343,72 @@ class ShadowingApp {
             `;
         }).join('');
         container.innerHTML = headerRow + turnsHtml;
+        this.setupResultAudioButtons(container);
         
         this.hideModal('exercise-detail-modal');
         this.showModal('result-modal');
+    }
+
+    setupResultAudioButtons(container) {
+        container.querySelectorAll('.result-audio-btn').forEach(button => {
+            button.addEventListener('click', async (event) => {
+                event.stopPropagation();
+                const exerciseId = parseInt(button.dataset.exerciseId);
+                const turnId = parseInt(button.dataset.turnId);
+                await this.toggleResultTurnAudio(exerciseId, turnId, button);
+            });
+        });
+    }
+
+    async toggleResultTurnAudio(exerciseId, turnId, button) {
+        if (!exerciseId || !turnId) {
+            this.showError('音声を再生するための課題情報が見つかりません');
+            return;
+        }
+
+        if (this.resultAudio && this.playingResultTurnId === turnId && !this.resultAudio.paused) {
+            this.stopResultAudio();
+            return;
+        }
+
+        this.stopResultAudio();
+
+        try {
+            const audio = new Audio(`/api/audio/${exerciseId}/turn/${turnId}`);
+            this.resultAudio = audio;
+            this.playingResultTurnId = turnId;
+            button.classList.add('playing');
+            button.title = '停止';
+            button.setAttribute('aria-label', `ターン${turnId}の音声を停止`);
+
+            audio.onended = () => this.stopResultAudio();
+            audio.onerror = () => {
+                this.stopResultAudio();
+                this.showError('ターン音声の読み込みに失敗しました');
+            };
+
+            await audio.play();
+        } catch (error) {
+            this.stopResultAudio();
+            this.showError('音声の再生に失敗しました: ' + error.message);
+        }
+    }
+
+    stopResultAudio() {
+        if (this.resultAudio) {
+            this.resultAudio.pause();
+            this.resultAudio.currentTime = 0;
+            this.resultAudio = null;
+        }
+
+        document.querySelectorAll('.result-audio-btn.playing').forEach(button => {
+            const turnId = button.dataset.turnId;
+            button.classList.remove('playing');
+            button.title = 'このターンの音声を再生';
+            button.setAttribute('aria-label', `ターン${turnId}の音声を再生`);
+        });
+
+        this.playingResultTurnId = null;
     }
 
     // 全体音声再生

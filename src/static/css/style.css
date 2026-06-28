@@ -807,19 +807,73 @@ body {
 
 .result-turn-header {
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: 1fr 1fr;
     align-items: center;
     margin-bottom: 0.2rem;
     gap: 0.5rem;
+    padding: 0 0.4rem;
 }
 
-/* ターン番号はリスニングのスタイルに合わせて左側に丸表示を使い回し */
-.result-turn-header .listen-turn-number { margin-left: 0.2rem; }
+.result-turn-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.result-turn-meta .result-audio-btn {
+    margin-left: auto;
+}
 
 .result-turn-score {
     font-size: 0.95rem;
     font-weight: bold;
     color: #2ecc71;
+    text-align: left;
+}
+
+.result-audio-btn {
+    width: 26px;
+    height: 26px;
+    border: 1px solid #d6e4ef;
+    border-radius: 50%;
+    background: #f8fbfd;
+    color: #3498db;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.result-audio-btn::before {
+    content: '';
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 7px solid currentColor;
+    margin-left: 2px;
+}
+
+.result-audio-btn:hover {
+    background: #eaf4fb;
+    border-color: #3498db;
+}
+
+.result-audio-btn.playing {
+    background: #3498db;
+    border-color: #3498db;
+    color: white;
+}
+
+.result-audio-btn.playing::before {
+    width: 8px;
+    height: 8px;
+    border: 0;
+    margin-left: 0;
+    background: currentColor;
+    border-radius: 1px;
 }
 
 .result-comparison {
@@ -847,6 +901,10 @@ body {
     border-radius: 4px;
     font-size: 0.9rem;
     line-height: 1.3;
+}
+
+.result-original {
+    display: block;
 }
 
 /* 不一致箇所のハイライト */
